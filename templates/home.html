@@ -3,12 +3,15 @@
 
 
 {% if user %}
-Hi {{ user }},<br>
-<a href="/auth/logout/">Log out</a>
+<p><strong>{{ user }}</strong> 
+<span style="font-size:0.7em">(<a href="/auth/logout/">Log out</a>)</span>
+</p>
+<p><a href="/test">Test the service</a></p>
 
 {% else %}
-stranger,<br>
+<p>stranger<br>
 <a href="/auth/twitter/">Log in with Twitter</a>
+</p>
 {% end %}
 
 {% end %}

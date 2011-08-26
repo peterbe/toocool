@@ -3,12 +3,43 @@
 <head>
     <title>{% block title %}{% end %}</title>
     <meta charset="utf-8">
+    <link href='http://fonts.googleapis.com/css?family=Permanent+Marker' rel='stylesheet' type='text/css'>
+    <style>
+    body {
+    font-family: sans-serif;
+    background-attachment: fixed;
+    background-image: url(/static/images/rock.jpg);
+    background-repeat: no-repeat;
+    background-position: bottom right;
+    }
+    h1,h2,h3,h4 { font-family: 'Permanent Marker', cursive; }
+    h1 a { color:black; text-decoration:none; }
+    h1 a:hover { color:black; text-decoration:underline; }
+    header h1 { font-size:3.2em; }
+    footer { position: absolute; bottom: 0; }
+    footer p { text-align:center; font-family: sans-serif; color:#666; font-size:0.8em; }
+    </style>
     {% block extra_head %}{% end %}
 </head>
 <body>
+<header>
 
+  <h1><a href="/">Too Cool For Me</a></h1>
+<h3>Service to allow you to find out who of the people you follow also follow you on <a href="https://twitter.com">Twitter</a></h3>
+</header>
+
+<section id="content">
 {% block content %}
 
 {% end %}
+</section>
+
+<footer>
+<p>Brought to be you by <a href="http://www.peterbe.com/">Peter Bengtsson</a>
+ &bull;
+<a href="https://github.com/peterbe/toocool">code on github</a>
+</p>
+</footer>
+{% block extra_js %}{% end %}
 </body>
 </html>

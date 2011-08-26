@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+
+
+<form action="" >
+<p>Type some Twitter user names below to see who's too cool for you.<br>
+Also include some user names you know follow you:</p>
+<div style="float:left">
+<textarea name="usernames" cols="20" rows="20">ConanOBrien
+justinbieber
+</textarea><input type="submit" value="Test">
+</div>
+</form>
+
+<div id="results">
+</div>
+<div style="clear:left">&nbsp;</div>
+{% end %}
+
+{% block extra_js %}
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
+<script>
+$(function() {
+  $('form').submit(function() {
+    var usernames = $('textarea').val().split('\n');
+    $.getJSON('/json', {'usernames': usernames.join(',')}, function (response) {
+      if (!$('#results ul').size()) {
+        $('<h3>', {text: 'Too cool for me:'}).appendTo($('#results'));
+        $('<ul>').attr('id', 'followsyounot').appendTo($('#results'));
+        $('<h3>', {text: 'Follows me:'}).appendTo($('#results'));
+        $('<ul>').attr('id', 'followsyou').appendTo($('#results'));
+      } else {
+        $('#results li').remove();
+      }
+      var c;
+      $.each(response, function(x, y) {
+        if (y)
+          c = $('ul#followsyou');
+        else
+          c = $('ul#followsyounot');
+        $('<a>', {href: 'https://twitter.com/' + x})
+          .appendTo($('<li>', {text: x}).appendTo(c));
+      });
+    });
+    return false;
+  });
+});
+
+</script>
+{% end %}

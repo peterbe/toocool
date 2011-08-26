@@ -3,6 +3,7 @@ import tornado.auth
 import tornado.web
 from tornado.web import HTTPError
 from utils.routes import route
+from utils.decorators import login_required
 from tornado.escape import json_decode, json_encode
 import settings
 
@@ -89,8 +90,8 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
                         self.request.host)
             })
             return
-        #print "USERNAMES"
-        #print usernames
+        print "USERNAMES"
+        pprint(usernames)
         #print
 
         results = {}
@@ -107,7 +108,7 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
         usernames -= _drop
 
         if len(usernames) == 1:
-            username = usernames[0]
+            username = list(usernames)[0]
             # See https://dev.twitter.com/docs/api/1/get/friendships/show
             self.twitter_request(
                 "/friendships/show",
@@ -119,8 +120,8 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
                 ),
                 )
         elif usernames:
-            #print "ACCESS_TOKEN"
-            #print access_token
+            print "ACCESS_TOKEN"
+            print access_token
             # See https://dev.twitter.com/docs/api/1/get/friendships/lookup
             self.twitter_request(
                 "/friendships/lookup",
@@ -137,8 +138,8 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
 
 
     def _on_lookup(self, result, this_username, data):
-        #print "RESULT"
-        #pprint(result)
+        print "RESULT"
+        pprint(result)
         for each in result:
             if 'followed_by' in each['connections']:
                 data[each['screen_name']] = True
@@ -150,7 +151,7 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
         self.write_json(data)
         self.finish()
 
-    def _on_show(self, result, this_username, username):
+    def _on_show(self, result, this_username, username, data):
         #print "RESULT"
         #pprint(result)
         target_follows = None
@@ -158,7 +159,8 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
             target_follows = result['relationship']['target']['following']
         key = 'follows:%s:%s' % (this_username, username)
         self.redis.setex(key, int(bool(target_follows)), 60)
-        self.write_json({username: target_follows})
+        data[username] = target_follows
+        self.write_json(data)
         self.finish()
 
 
@@ -195,3 +197,16 @@ class AuthLogoutHandler(BaseAuthHandler):
     def get(self):
         self.clear_all_cookies()
         self.redirect(self.get_next_url())
+
+
+@route(r'/test', name='test')
+class TestServiceHandler(BaseHandler):
+
+    def get(self):
+        options = {}
+        user = self.get_current_user()
+        if not user:
+            self.redirect('/auth/twitter/')
+            return
+        options['user'] = user
+        self.render('test.html', **options)
