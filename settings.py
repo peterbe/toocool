@@ -2,8 +2,8 @@ import os.path as op
 ROOT = op.abspath(op.dirname(__file__))
 path = lambda *a: op.join(ROOT, *a)
 
-PROJECT_TITLE = u"Follows me?"
-DATABASE_NAME = "followsme"
+PROJECT_TITLE = u"Too cool for me?"
+DATABASE_NAME = "toocool"
 
 COOKIE_SECRET = "92orTzK3XqaGUYdkL3gmUejIFuY37EQn92XsTo1v/Vi="
 TWITTER_CONSUMER_KEY = None
