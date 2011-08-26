@@ -210,3 +210,28 @@ class TestServiceHandler(BaseHandler):
             return
         options['user'] = user
         self.render('test.html', **options)
+
+@route(r'/dotjs', name='dotjs')
+class DotJSHandler(BaseHandler):
+
+    def get(self):
+        options = {}
+        user = self.get_current_user()
+        self.render('dotjs.html', **options)
+
+
+@route(r'/download/twitter.com.js')
+class DotJSHandler(BaseHandler):
+
+    def get(self):
+        import os
+        parent = os.path.abspath(os.path.dirname(__file__))
+        dir_ = os.path.join(parent, 'dotjs')
+        filepath = os.path.join(parent, 'dotjs', 'twitter.com.js')
+        assert os.path.isfile(filepath)
+        self.set_header('Content-Type', 'application/octet-stream')
+        self.set_header('Content-Disposition',
+                        'attachment;filename="%s"' %
+                         os.path.basename(filepath))
+        with file(filepath) as f:
+            self.write(f.read())

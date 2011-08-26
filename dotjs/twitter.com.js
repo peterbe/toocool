@@ -1,11 +1,17 @@
+/* Version 0.1
+ * 26 August 2011
+ *
+ * Copyright http://toocoolfor.me
+ */
+
+
 function L() {
    if (window.console && window.console.log)
      console.log.apply(console, arguments);
 }
 
-
 var Lookup = (function() {
-  var BASE_URL = 'http://localhost:8000';
+  var BASE_URL = 'http://toocoolfor.me';
 
   var screennames = [];
   function findScreenNames() {
@@ -32,7 +38,6 @@ var Lookup = (function() {
            alert(response.ERROR);
            return;
          }
-         L($('span.tweet-content').size());
          var screen_name, tag;
 
          $('div.tweet-content').each(function() {
@@ -62,8 +67,6 @@ var Lookup = (function() {
                      .css('padding-right', '30px')
                        .css('font-size', '11px')
                          .appendTo($('span.tweet-user-name', this));
-           L('screen_name', screen_name);
-
 
          });
        });
