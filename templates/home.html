@@ -1,4 +1,10 @@
 {% extends "base.html" %}
+
+{% block extra_header %}
+<h3>Service to allow you to find out who of the people you follow also follow you on <a href="https://twitter.com">Twitter</a></h3>
+{% end %}
+
+
 {% block content %}
 
 
@@ -7,7 +13,10 @@
 <span style="font-size:0.7em">(<a href="/auth/logout/">Log out</a>)</span>
 </p>
 <p><a href="/test">Test the service</a></p>
-<p><a href="/dotjs">Download the Chrome extension</a></p>
+
+<p>Drag this link (bookmarklet) into your browser's bookmarks toolbar:
+<a style="font-weight:bold" href="javascript:void((function(){var%20e=document.createElement('script');e.setAttribute('type','text/javascript');e.setAttribute('src','{{ full_bookmarklet_url }}');document.body.appendChild(e)})())">Too cool for me?</a>
+</p>
 
 {% else %}
 <p>stranger<br>

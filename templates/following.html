@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<p style="text-align:center; font-size:1.2em"><strong>{{ username }}</strong>
+{% if follows %}<span class="followsyou">follows me!</span>
+{% else %}
+  {% if follows is not None %}
+    <span class="followsyounot">too cool for me</span>
+  {% else %}
+    <em>couldn't even be looked up on Twitter</em>
+  {% end %}
+{% end %}
+</p>
+
+<p style="font-size:0.8em;margin-top:75px">
+There'll be more stuff shown here about this user and you and perhaps an explanation
+why this person is too cool for you or whether being followed by this user is cool at all.<br>
+Bear with me.
+</p>
+{% end %}

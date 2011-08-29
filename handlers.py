@@ -10,13 +10,7 @@ import settings
 class BaseHandler(tornado.web.RequestHandler):
 
     def write_json(self, struct, javascript=False):
-        if javascript:
-            self.set_header("Content-Type", "text/javascript; charset=UTF-8")
-        else:
-            self.set_header("Content-Type", "application/json; charset=UTF-8")
-        #print "OUTPUT"
-        #pprint(struct)
-
+        self.set_header("Content-Type", "application/json; charset=UTF-8")
         self.write(tornado.escape.json_encode(struct))
 
     def write_jsonp(self, callback, struct):
@@ -50,11 +44,11 @@ class HomeHandler(BaseHandler):
         self.render('home.html', **options)
 
 
-@route('/json')
+@route('/json(p)?')
 class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
 
     @tornado.web.asynchronous
-    def get(self):
+    def get(self, jsonp=False):
         if (self.get_argument('username', None) and
             not self.get_argument('usernames', None)):
             usernames = self.get_arguments('username')
@@ -70,17 +64,27 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
                          if x.strip()]
         # make sure it's a unique list
         usernames = set(usernames)
+        if jsonp:
+            self.jsonp = self.get_argument('callback', 'callback')
+        else:
+            self.jsonp = False
 
-        this_username = self.get_current_user()
-        you = self.get_argument('you', None)  # optional
-        if you:
-            if this_username != you:
-                self.write_json({
-                  'ERROR': "Logged in on %s as '%s'" % this_username
-                })
-                return
-            if you in usernames:
-                usernames.remove(you)
+        # All of this is commented out until I can figure out why cookie
+        # headers aren't sent from bookmarklet's AJAX code
+        this_username = self.get_argument('you', self.get_current_user())
+#        this_username = self.get_current_user()
+#        #print "THIS_USERNAME", repr(this_username)
+#        you = self.get_argument('you', None)  # optional
+#        #print "YOU", repr(you)
+#        if you:
+#            print "THIS_USERNAME", repr(this_username)
+#            if this_username != you:
+#                self.write_json({
+#                  'ERROR': "Logged in on %s as '%s'" % this_username
+#                })
+#                return
+#            if you in usernames:
+#                usernames.remove(you)
         access_token = self.redis.get('username:%s' % this_username)
         if access_token:
             access_token = json_decode(access_token)
@@ -133,7 +137,12 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
             )
         else:
             # all usernames were lookup'able by cache
-            self.write_json(results)
+            if self.jsonp:
+                self.write_jsonp(self.jsonp, results)
+            else:
+                self.write_json(results)
+            print "RETURNING"
+            pprint(results)
             self.finish()
 
 
@@ -148,7 +157,12 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
             key = 'follows:%s:%s' % (this_username, each['screen_name'])
             self.redis.setex(key, int(data[each['screen_name']]), 60)
 
-        self.write_json(data)
+        if self.jsonp:
+            self.write_jsonp(self.jsonp, data)
+        else:
+            self.write_json(data)
+        print "RETURNING"
+        pprint(data)
         self.finish()
 
     def _on_show(self, result, this_username, username, data):
@@ -160,7 +174,12 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
         key = 'follows:%s:%s' % (this_username, username)
         self.redis.setex(key, int(bool(target_follows)), 60)
         data[username] = target_follows
-        self.write_json(data)
+        if self.jsonp:
+            self.write_jsonp(self.jsonp, data)
+        else:
+            self.write_json(data)
+        print "RETURNING"
+        pprint(data)
         self.finish()
 
 
@@ -183,13 +202,14 @@ class TwitterAuthHandler(BaseAuthHandler, tornado.auth.TwitterMixin):
         if not user_struct:
             raise HTTPError(500, "Twitter auth failed")
         username = user_struct.get('username')
+        self.redis.rpush('usernames', username)
         #first_name = user_struct.get('first_name', user_struct.get('name'))
         #last_name = user_struct.get('last_name')
         #email = user_struct.get('email')
         access_token = user_struct['access_token']
         self.redis.set('username:%s' % username, json_encode(access_token))
         #profile_image_url = user_struct.get('profile_image_url', None)
-        self.set_secure_cookie("user", username.encode('utf8'), expires_days=30)
+        self.set_secure_cookie("user", username.encode('utf8'), expires_days=30, path='/')
         self.redirect('/')
 
 @route(r'/auth/logout/', name='logout')
@@ -235,3 +255,44 @@ class DotJSHandler(BaseHandler):
                          os.path.basename(filepath))
         with file(filepath) as f:
             self.write(f.read())
+
+
+@route('/following/(\w+)')
+class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
+
+    @tornado.web.asynchronous
+    def get(self, username):
+        options = {'username': username}
+        user = self.get_current_user()
+        if not user:
+            self.redirect('auth_twitter')
+            return
+        this_username = self.get_current_user()
+        options['follows'] = None
+        if this_username:
+            key = 'follows:%s:%s' % (this_username, username)
+            value = self.redis.get(key)
+            if value is None:
+                access_token = self.redis.get('username:%s' % this_username)
+                access_token = json_decode(access_token)
+                self.twitter_request(
+                  "/friendships/show",
+                  source_screen_name=this_username,
+                  target_screen_name=username,
+                  access_token=access_token,
+                  callback=self.async_callback(
+                    lambda x: self._on_show(x, this_username, username, options)
+                  ),
+                )
+                return
+            options['follows'] = bool(int(value))
+        self.render('following.html', **options)
+
+    def _on_show(self, result, this_username, username, options):
+        value = None
+        if result and 'relationship' in result:
+            value = result['relationship']['target']['following']
+            key = 'follows:%s:%s' % (this_username, username)
+            self.redis.setex(key, int(bool(value)), 60)
+        options['follows'] = value
+        self.render('following.html', **options)

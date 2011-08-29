@@ -18,6 +18,8 @@
     header h1 { font-size:3.2em; }
     footer { position: absolute; bottom: 0; }
     footer p { text-align:center; font-family: sans-serif; color:#666; font-size:0.8em; }
+    .followsyou { color: green; }
+    .followsyounot { color: #333; }
     </style>
     {% block extra_head %}{% end %}
 </head>
@@ -25,7 +27,8 @@
 <header>
 
   <h1><a href="/">Too Cool For Me</a></h1>
-<h3>Service to allow you to find out who of the people you follow also follow you on <a href="https://twitter.com">Twitter</a></h3>
+  {% block extra_header %}
+  {% end %}
 </header>
 
 <section id="content">
