@@ -1,3 +1,4 @@
+import logging
 from pprint import pprint, pformat
 import tornado.auth
 import tornado.web
@@ -328,7 +329,7 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         if isinstance(result, basestring):
             result = json_decode(result)
         if key:
-            self.redis.setex(key, json_encode(result), 60 * 1)#60)
+            self.redis.setex(key, json_encode(result), 60 * 60)
         if 'info' not in options:
             options['info'] = {options['username']: result}
             self._fetch_info(options, username=options['this_username'])
@@ -351,8 +352,12 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         self.render('following.html', **options)
 
     def _set_ratio(self, options, key):
-        value = options[key]
-        followers = options['info'][value]['followers_count']
-        following = options['info'][value]['friends_count']
-        ratio = 1.0 * followers / following
-        options['info'][value]['ratio'] = '%.1f' % ratio
+        try:
+            value = options[key]
+            followers = options['info'][value]['followers_count']
+            following = options['info'][value]['friends_count']
+            ratio = 1.0 * followers / following
+            options['info'][value]['ratio'] = '%.1f' % ratio
+        except:
+            logging.error("KEY=%r, VALUE=%r, options['info']=%s" % (key, value, pformat(options['info'])))
+            raise
