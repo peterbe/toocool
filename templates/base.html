@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
 <head>
-    <title>{% block title %}{% end %}</title>
+    <title>{% block title %}{{ page_title }}{% end %}</title>
     <meta charset="utf-8">
     <link href='http://fonts.googleapis.com/css?family=Permanent+Marker' rel='stylesheet' type='text/css'>
     <style>
@@ -16,17 +16,19 @@
     h1 a { color:black; text-decoration:none; }
     h1 a:hover { color:black; text-decoration:underline; }
     header h1 { font-size:3.2em; }
-    footer { position: absolute; bottom: 0; }
+    /*footer { position: absolute; bottom: 0; }*/
+    footer { clear:left; margin-top:100px; }
     footer p { text-align:center; font-family: sans-serif; color:#666; font-size:0.8em; }
     .followsyou { color: green; }
     .followsyounot { color: #333; }
+    h1 a .q { color:#999; }
     </style>
     {% block extra_head %}{% end %}
 </head>
 <body>
 <header>
 
-  <h1><a href="/">Too Cool For Me</a></h1>
+  <h1><a href="/">Too Cool For Me<span class="q">?</span></a></h1>
   {% block extra_header %}
   {% end %}
 </header>

@@ -1,4 +1,4 @@
-from pprint import pprint
+from pprint import pprint, pformat
 import tornado.auth
 import tornado.web
 from tornado.web import HTTPError
@@ -31,7 +31,9 @@ class BaseHandler(tornado.web.RequestHandler):
 class HomeHandler(BaseHandler):
 
     def get(self):
-        options = {}
+        options = {
+          'page_title': 'Too Cool for Me?',
+        }
         user = self.get_current_user()
         if user:
             url = '/static/bookmarklet.js'
@@ -263,36 +265,94 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
     @tornado.web.asynchronous
     def get(self, username):
         options = {'username': username}
-        user = self.get_current_user()
-        if not user:
+        this_username = self.get_current_user()
+        if not this_username:
             self.redirect('auth_twitter')
             return
-        this_username = self.get_current_user()
+        options['this_username'] = this_username
         options['follows'] = None
-        if this_username:
-            key = 'follows:%s:%s' % (this_username, username)
-            value = self.redis.get(key)
-            if value is None:
-                access_token = self.redis.get('username:%s' % this_username)
-                access_token = json_decode(access_token)
-                self.twitter_request(
-                  "/friendships/show",
-                  source_screen_name=this_username,
-                  target_screen_name=username,
-                  access_token=access_token,
-                  callback=self.async_callback(
-                    lambda x: self._on_show(x, this_username, username, options)
-                  ),
-                )
-                return
-            options['follows'] = bool(int(value))
+        key = 'follows:%s:%s' % (this_username, username)
+        value = self.redis.get(key)
+        if value is None:
+            access_token = self.redis.get('username:%s' % this_username)
+            access_token = json_decode(access_token)
+            self.twitter_request(
+              "/friendships/show",
+              source_screen_name=this_username,
+              target_screen_name=username,
+              access_token=access_token,
+              callback=self.async_callback(
+                lambda x: self._on_friendship(x, key, options)
+              ),
+            )
+        else:
+            self._on_friendship(bool(int(value)), None, options)
+            #options['follows'] = bool(int(value))
+            #self._fetch_info(options)
+
+    def _on_friendship(self, result, key, options):
+        if isinstance(result, bool):
+            value = result
+        else:
+            if result and 'relationship' in result:
+                value = result['relationship']['target']['following']
+                if key:
+                    self.redis.setex(key, int(bool(value)), 60)
+        options['follows'] = value
+        self._fetch_info(options)
+
+    def _fetch_info(self, options, username=None):
+        if username is None:
+            username = options['username']
+        key = 'info:%s' % username
+        value = self.redis.get(key)
+        if value is None:
+            access_token = self.redis.get('username:%s' % options['this_username'])
+            access_token = json_decode(access_token)
+            self.twitter_request(
+              "/users/show",
+              screen_name=username,
+              access_token=access_token,
+              callback=self.async_callback(
+                lambda x: self._on_info(x, key, options)
+              ),
+            )
+        else:
+            self._on_info(json_decode(value), None, options)
+            #value = json_decode(value)
+            #options['info'] = value
+            #pprint(value)
+            #self._render(options)
+
+    def _on_info(self, result, key, options):
+        if isinstance(result, basestring):
+            result = json_decode(result)
+        if key:
+            self.redis.setex(key, json_encode(result), 60 * 1)#60)
+        if 'info' not in options:
+            options['info'] = {options['username']: result}
+            self._fetch_info(options, username=options['this_username'])
+        else:
+            options['info'][options['this_username']] = result
+            self._render(options)
+
+    def _render(self, options):
+        if options['follows']:
+            page_title = '%s follows you'
+        else:
+            page_title = '%s is too cool for you'
+        options['page_title'] = page_title % options['username']
+        #options['info_print'] = pformat(options['info'])
+        #_followers = options['info']['followers_count']
+        #_following = options['info']['friends_count']
+        #options['ratios'][options['username']] =
+        self._set_ratio(options, 'username')
+        self._set_ratio(options, 'this_username')
         self.render('following.html', **options)
 
-    def _on_show(self, result, this_username, username, options):
-        value = None
-        if result and 'relationship' in result:
-            value = result['relationship']['target']['following']
-            key = 'follows:%s:%s' % (this_username, username)
-            self.redis.setex(key, int(bool(value)), 60)
-        options['follows'] = value
-        self.render('following.html', **options)
+    def _set_ratio(self, options, key):
+        value = options[key]
+        followers = options['info'][value]['followers_count']
+        following = options['info'][value]['friends_count']
+        ratio = 1.0 * followers / following
+        options['info'][value]['ratio'] = '%.1f' % ratio

@@ -1,21 +1,87 @@
 {% extends "base.html" %}
 
+
+{% block extra_head %}
+<style>
+table { border-collapse:collapse; }
+table td { padding:8px 20px 8px 20px; }
+.label { font-weight:bold; }
+td.label { border-right:1px solid #999; }
+th.label { border-bottom:1px solid #999; }
+</style>
+{% end %}
+
 {% block content %}
 
-<p style="text-align:center; font-size:1.2em"><strong>{{ username }}</strong>
+<p style="font-size:2em">
+<a href="https://twitter.com/#!{{ username }}"
+><img src="http://api.twitter.com/1/users/profile_image/{{ username }}.png?size=bigger"></a>
+<strong>{{ username }}</strong>
 {% if follows %}<span class="followsyou">follows me!</span>
 {% else %}
   {% if follows is not None %}
-    <span class="followsyounot">too cool for me</span>
+    <span class="followsyounot">is too cool for me</span>
   {% else %}
     <em>couldn't even be looked up on Twitter</em>
   {% end %}
 {% end %}
 </p>
 
-<p style="font-size:0.8em;margin-top:75px">
+<div id="chart_div"></div>
+
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+      google.load("visualization", "1", {packages:["corechart"]});
+      google.setOnLoadCallback(drawChart);
+      function drawChart() {
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'Year');
+        data.addColumn('number', 'followers');
+        data.addColumn('number', 'following');
+        data.addRows(2);
+        data.setValue(0, 0, '{{ username }}');
+        data.setValue(0, 1, {{ info[username]['followers_count'] }});
+        data.setValue(0, 2, {{ info[username]['friends_count'] }});
+        data.setValue(1, 0, 'you');
+        data.setValue(1, 1, {{ info[this_username]['followers_count'] }});
+        data.setValue(1, 2, {{ info[this_username]['friends_count'] }});
+
+        var chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
+        chart.draw(data, {width: 600, height: 400,
+                          title: 'Coolness in terms of following and followers',
+                          vAxis: {title: 'number of people'},
+                          hAxis: {title: 'cool people have bigger \'followers\' than \'following\''}
+                         });
+      }
+    </script>
+
+<table>
+  <tr>
+    <td>&nbsp;</td>
+    <th class="label">{{ username }}</th>
+    <th class="label">{{ this_username }}</th>
+  </tr>
+  <tr>
+    <td class="label">followers:</td>
+    <td>{{ info[username]['followers_count'] }}</td>
+    <td>{{ info[this_username]['followers_count'] }}</td>
+  </tr>
+  <tr>
+    <td class="label">following:</td>
+    <td>{{ info[username]['friends_count'] }}</td>
+    <td>{{ info[this_username]['friends_count'] }}</td>
+  </tr>
+  <tr>
+    <td class="label">ratio:</td>
+    <td>{{ info[username]['ratio'] }}</td>
+    <td>{{ info[this_username]['ratio'] }}</td>
+  </tr>
+</table>
+
+<!--<p style="font-size:0.8em;margin-top:75px">
 There'll be more stuff shown here about this user and you and perhaps an explanation
 why this person is too cool for you or whether being followed by this user is cool at all.<br>
 Bear with me.
-</p>
+</p>-->
+
 {% end %}
