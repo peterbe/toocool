@@ -38,6 +38,9 @@ var Lookup = (function() {
            // or if it's you
            if (screen_name == your_screen_name)
              return;
+           // only display results once
+           if ($('a.followsyou,a.followsyounot', this).size())
+             return;
 
            if (response[screen_name]) {
              tag = $('<a>', {text: 'follows me'})
