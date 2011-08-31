@@ -245,32 +245,6 @@ class TestServiceHandler(BaseHandler):
         options['user'] = user
         self.render('test.html', **options)
 
-@route(r'/dotjs', name='dotjs')
-class DotJSHandler(BaseHandler):
-
-    def get(self):
-        options = {}
-        user = self.get_current_user()
-        self.render('dotjs.html', **options)
-
-
-@route(r'/download/twitter.com.js')
-class DotJSHandler(BaseHandler):
-
-    def get(self):
-        import os
-        parent = os.path.abspath(os.path.dirname(__file__))
-        dir_ = os.path.join(parent, 'dotjs')
-        filepath = os.path.join(parent, 'dotjs', 'twitter.com.js')
-        assert os.path.isfile(filepath)
-        self.set_header('Content-Type', 'application/octet-stream')
-        self.set_header('Content-Disposition',
-                        'attachment;filename="%s"' %
-                         os.path.basename(filepath))
-        with file(filepath) as f:
-            self.write(f.read())
-
-
 @route('/following/(\w+)')
 class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
 
@@ -306,6 +280,7 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         if isinstance(result, bool):
             value = result
         else:
+            logging.info("Result: %r"%result)
             if result and 'relationship' in result:
                 value = result['relationship']['target']['following']
                 if key and value is not None:
@@ -382,3 +357,21 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         except:
             logging.error("KEY=%r, VALUE=%r, options['info']=%s" % (key, value, pformat(options['info'])))
             raise
+
+
+@route(r'/coolest')
+class CoolestHandler(BaseHandler):
+
+    def get(self):
+        options = {}
+        user = self.get_current_user()
+#        if not user:
+#            self.redirect('/auth/twitter/')
+#            return
+        key = 'ratios'
+        ratios = self.redis.zrange(key, 0, -1, withscores=True)
+        ratios.reverse()
+        options['ratios'] = ratios
+        options['user'] = user
+        options['page_title'] = 'Coolest in the world! ...on Twitter ...using this site'
+        self.render('coolest.html', **options)
