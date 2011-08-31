@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+
+{% block extra_head %}
+<style>
+</style>
+{% end %}
+
+{% block content %}
+<h1>{{ page_title }}</h1>
+
+<table>
+  {% for i, (username, ratio) in enumerate(ratios) %}
+  <tr>
+    <td>{{ i + 1 }}</td>
+    {% if user %}
+    <td>
+      {% if username == user %}
+      {{ username }} &larr; me me me!
+      {% else %}
+      <a href="/following/{{ username }}">{{ username }}</a>
+      {% end %}
+    </td>
+    {% else %}
+    <td>{{ username }}</td>
+    {% end %}
+    <td>{{ '%.1f' % ratio }}</td>
+  </tr>
+  {% end %}
+</table>
+
+{% end %}
