@@ -16,6 +16,7 @@ class BaseHandler(tornado.web.RequestHandler):
 
     def write_jsonp(self, callback, struct):
         self.set_header("Content-Type", "text/javascript; charset=UTF-8")
+#        pprint(struct)
         self.write('%s(%s)' % (callback, tornado.escape.json_encode(struct)))
 
     def get_current_user(self):
@@ -52,6 +53,7 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
 
     @tornado.web.asynchronous
     def get(self, jsonp=False):
+
         if (self.get_argument('username', None) and
             not self.get_argument('usernames', None)):
             usernames = self.get_arguments('username')
@@ -72,6 +74,10 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
         else:
             self.jsonp = False
 
+        print "USERNAMES"
+        print usernames
+
+
         # All of this is commented out until I can figure out why cookie
         # headers aren't sent from bookmarklet's AJAX code
         this_username = self.get_argument('you', self.get_current_user())
@@ -89,6 +95,7 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
 #            if you in usernames:
 #                usernames.remove(you)
         access_token = self.redis.get('username:%s' % this_username)
+        print "access_token", access_token
         if access_token:
             access_token = json_decode(access_token)
         if not access_token:
@@ -96,6 +103,7 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
               'ERROR': ('Not authorized with Twitter for %s' %
                         self.request.host)
             })
+            self.finish()
             return
         print "USERNAMES"
         pprint(usernames)
@@ -130,6 +138,7 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
             print "ACCESS_TOKEN"
             print access_token
             # See https://dev.twitter.com/docs/api/1/get/friendships/lookup
+            print "Starting request",','.join(usernames)
             self.twitter_request(
                 "/friendships/lookup",
                 screen_name=','.join(usernames),
@@ -175,7 +184,8 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
         if result and 'relationship' in result:
             target_follows = result['relationship']['target']['following']
         key = 'follows:%s:%s' % (this_username, username)
-        self.redis.setex(key, int(bool(target_follows)), 60)
+        if target_follows is not None:
+            self.redis.setex(key, int(bool(target_follows)), 60)
         data[username] = target_follows
         if self.jsonp:
             self.write_jsonp(self.jsonp, data)
@@ -210,6 +220,7 @@ class TwitterAuthHandler(BaseAuthHandler, tornado.auth.TwitterMixin):
         #last_name = user_struct.get('last_name')
         #email = user_struct.get('email')
         access_token = user_struct['access_token']
+        assert access_token
         self.redis.set('username:%s' % username, json_encode(access_token))
         #profile_image_url = user_struct.get('profile_image_url', None)
         self.set_secure_cookie("user", username.encode('utf8'), expires_days=30, path='/')
@@ -297,7 +308,7 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         else:
             if result and 'relationship' in result:
                 value = result['relationship']['target']['following']
-                if key:
+                if key and value is not None:
                     self.redis.setex(key, int(bool(value)), 60)
         options['follows'] = value
         self._fetch_info(options)
@@ -307,6 +318,8 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
             username = options['username']
         key = 'info:%s' % username
         value = self.redis.get(key)
+        if value=='null':value=None  # temporary hack
+
         if value is None:
             access_token = self.redis.get('username:%s' % options['this_username'])
             access_token = json_decode(access_token)
@@ -329,6 +342,7 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         if isinstance(result, basestring):
             result = json_decode(result)
         if key:
+            assert result
             self.redis.setex(key, json_encode(result), 60 * 60)
         if 'info' not in options:
             options['info'] = {options['username']: result}
@@ -341,7 +355,7 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         if options['follows']:
             page_title = '%s follows you'
         else:
-            page_title = '%s is too cool for you'
+            page_title = '%s is too cool for me'
         options['page_title'] = page_title % options['username']
         #options['info_print'] = pformat(options['info'])
         #_followers = options['info']['followers_count']
@@ -358,6 +372,13 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
             following = options['info'][value]['friends_count']
             ratio = 1.0 * followers / following
             options['info'][value]['ratio'] = '%.1f' % ratio
+            self.redis.sadd('allusernames', value)
+            key = 'ratios'
+            self.redis.zadd(key, **{value: ratio})
+            _usernames = self.redis.zrange(key, 0, -1, withscores=False)
+            _usernames.reverse()
+            options['info'][value]['rank'] = _usernames.index(value)
+
         except:
             logging.error("KEY=%r, VALUE=%r, options['info']=%s" % (key, value, pformat(options['info'])))
             raise

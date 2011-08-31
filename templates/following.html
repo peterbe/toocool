@@ -8,6 +8,7 @@ table td { padding:8px 20px 8px 20px; }
 .label { font-weight:bold; }
 td.label { border-right:1px solid #999; }
 th.label { border-bottom:1px solid #999; }
+.footnut { font-size:0.8em; }
 </style>
 {% end %}
 
@@ -76,7 +77,20 @@ th.label { border-bottom:1px solid #999; }
     <td>{{ info[username]['ratio'] }}</td>
     <td>{{ info[this_username]['ratio'] }}</td>
   </tr>
+  {% if info[username].get('rank') and info[this_username].get('rank') %}
+  <tr>
+    <td class="label">rank<sup>1</sup>:</td>
+    <td>{{ info[username]['rank'] }}</td>
+    <td>{{ info[this_username]['rank'] }}</td>
+  </tr>
+  {% end %}
 </table>
+
+{% if info[username].get('rank') and info[this_username].get('rank') %}
+<p class="footnut"><sup>1</sup>
+This is a rank of all ratios gathered. The higher the value the cooler you are.
+</p>
+{% end %}
 
 <!--<p style="font-size:0.8em;margin-top:75px">
 There'll be more stuff shown here about this user and you and perhaps an explanation

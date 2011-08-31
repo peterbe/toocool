@@ -27,14 +27,11 @@ var Lookup = (function() {
            alert(response.ERROR);
            return;
          }
-         var screen_name, tag;
+         var screen_name, tag, prefix;
 
          $('div.tweet-content').each(function() {
-           // if it's got one of those 'retweeted by <someoneyoufollow>'
-           // then just skip
-           if ($('.retweet-icon', this).size())
-             return;
            screen_name = $('a.tweet-screen-name', this).text();
+
            // or if it's you
            if (screen_name == your_screen_name)
              return;
