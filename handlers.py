@@ -280,7 +280,7 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         if isinstance(result, bool):
             value = result
         else:
-            logging.info("Result: %r"%result)
+            logging.info("Result (%r): %r"%(key,result))
             if result and 'relationship' in result:
                 value = result['relationship']['target']['following']
                 if key and value is not None:
