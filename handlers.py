@@ -243,6 +243,7 @@ class TestServiceHandler(BaseHandler):
             self.redirect('/auth/twitter/')
             return
         options['user'] = user
+        options['page_title'] = "Test the service"
         self.render('test.html', **options)
 
 @route('/following/(\w+)')
