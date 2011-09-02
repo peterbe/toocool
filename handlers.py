@@ -3,8 +3,8 @@ from pprint import pprint, pformat
 import tornado.auth
 import tornado.web
 from tornado.web import HTTPError
-from utils.routes import route
-from utils.decorators import login_required
+from tornado_utils.routes import route
+from tornado_utils.decorators import login_required
 from tornado.escape import json_decode, json_encode
 import settings
 

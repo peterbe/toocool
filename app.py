@@ -8,7 +8,7 @@ import tornado.web
 import redis.client
 from tornado.options import define, options
 import settings
-from utils.routes import route
+from tornado_utils.routes import route
 
 
 define("debug", default=False, help="run in debug mode", type=bool)
