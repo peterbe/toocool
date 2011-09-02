@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import os
-import logging
 import tornado.httpserver
 import tornado.ioloop
 import tornado.options
@@ -9,6 +8,7 @@ import redis.client
 from tornado.options import define, options
 import settings
 from tornado_utils.routes import route
+import handlers
 
 
 define("debug", default=False, help="run in debug mode", type=bool)
@@ -18,7 +18,7 @@ define("port", default=8000, help="run on the given port", type=int)
 
 class Application(tornado.web.Application):
     def __init__(self, database_name=None):
-        handlers = route.get_routes()
+        routed_handlers = route.get_routes()
         app_settings = dict(
             title=settings.PROJECT_TITLE,
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
@@ -28,12 +28,10 @@ class Application(tornado.web.Application):
             twitter_consumer_key=settings.TWITTER_CONSUMER_KEY,
             twitter_consumer_secret=settings.TWITTER_CONSUMER_SECRET,
         )
-        super(Application, self).__init__(handlers, **app_settings)
+        super(Application, self).__init__(routed_handlers, **app_settings)
 
         self.redis = redis.client.Redis(settings.REDIS_HOST,
                                         settings.REDIS_PORT)
-
-import handlers
 
 
 def main():  # pragma: no cover

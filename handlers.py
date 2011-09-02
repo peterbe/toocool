@@ -4,9 +4,10 @@ import tornado.auth
 import tornado.web
 from tornado.web import HTTPError
 from tornado_utils.routes import route
-from tornado_utils.decorators import login_required
+#from tornado_utils.decorators import login_required
 from tornado.escape import json_decode, json_encode
-import settings
+#import settings
+
 
 class BaseHandler(tornado.web.RequestHandler):
 
@@ -16,7 +17,6 @@ class BaseHandler(tornado.web.RequestHandler):
 
     def write_jsonp(self, callback, struct):
         self.set_header("Content-Type", "text/javascript; charset=UTF-8")
-#        pprint(struct)
         self.write('%s(%s)' % (callback, tornado.escape.json_encode(struct)))
 
     def get_current_user(self):
@@ -74,9 +74,8 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
         else:
             self.jsonp = False
 
-        print "USERNAMES"
-        print usernames
-
+        #print "USERNAMES"
+        #print usernames
 
         # All of this is commented out until I can figure out why cookie
         # headers aren't sent from bookmarklet's AJAX code
@@ -138,7 +137,6 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
             print "ACCESS_TOKEN"
             print access_token
             # See https://dev.twitter.com/docs/api/1/get/friendships/lookup
-            print "Starting request",','.join(usernames)
             self.twitter_request(
                 "/friendships/lookup",
                 screen_name=','.join(usernames),
@@ -156,7 +154,6 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
             print "RETURNING"
             pprint(results)
             self.finish()
-
 
     def _on_lookup(self, result, this_username, data):
         print "RESULT"
@@ -201,6 +198,7 @@ class BaseAuthHandler(BaseHandler):
     def get_next_url(self):
         return '/'
 
+
 @route('/auth/twitter/', name='auth_twitter')
 class TwitterAuthHandler(BaseAuthHandler, tornado.auth.TwitterMixin):
 
@@ -223,8 +221,11 @@ class TwitterAuthHandler(BaseAuthHandler, tornado.auth.TwitterMixin):
         assert access_token
         self.redis.set('username:%s' % username, json_encode(access_token))
         #profile_image_url = user_struct.get('profile_image_url', None)
-        self.set_secure_cookie("user", username.encode('utf8'), expires_days=30, path='/')
+        self.set_secure_cookie("user",
+                               username.encode('utf8'),
+                               expires_days=30, path='/')
         self.redirect('/')
+
 
 @route(r'/auth/logout/', name='logout')
 class AuthLogoutHandler(BaseAuthHandler):
@@ -245,6 +246,7 @@ class TestServiceHandler(BaseHandler):
         options['user'] = user
         options['page_title'] = "Test the service"
         self.render('test.html', **options)
+
 
 @route('/following/(\w+)')
 class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
@@ -281,7 +283,7 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         if isinstance(result, bool):
             value = result
         else:
-            logging.info("Result (%r): %r"%(key,result))
+            logging.info("Result (%r): %r" % (key, result))
             if result and 'relationship' in result:
                 value = result['relationship']['target']['following']
                 if key and value is not None:
@@ -294,10 +296,10 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
             username = options['username']
         key = 'info:%s' % username
         value = self.redis.get(key)
-        if value=='null':value=None  # temporary hack
 
         if value is None:
-            access_token = self.redis.get('username:%s' % options['this_username'])
+            access_token = self.redis.get('username:%s' %
+                                          options['this_username'])
             access_token = json_decode(access_token)
             self.twitter_request(
               "/users/show",
@@ -356,7 +358,8 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
             options['info'][value]['rank'] = _usernames.index(value)
 
         except:
-            logging.error("KEY=%r, VALUE=%r, options['info']=%s" % (key, value, pformat(options['info'])))
+            logging.error("KEY=%r, VALUE=%r, options['info']=%s" %
+                          (key, value, pformat(options['info'])))
             raise
 
 
@@ -366,13 +369,11 @@ class CoolestHandler(BaseHandler):
     def get(self):
         options = {}
         user = self.get_current_user()
-#        if not user:
-#            self.redirect('/auth/twitter/')
-#            return
         key = 'ratios'
         ratios = self.redis.zrange(key, 0, -1, withscores=True)
         ratios.reverse()
         options['ratios'] = ratios
         options['user'] = user
-        options['page_title'] = 'Coolest in the world! ...on Twitter ...using this site'
+        options['page_title'] = \
+          "Coolest in the world! ...on Twitter ...using this site"
         self.render('coolest.html', **options)
