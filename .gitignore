@@ -1,3 +1,4 @@
 local_settings.py
 utils/send_mail/pickles/
 dump.rdb
+coverage_report/

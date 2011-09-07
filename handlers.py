@@ -38,6 +38,11 @@ class HomeHandler(BaseHandler):
         }
         user = self.get_current_user()
         if user:
+            # check that we still have the access token
+            key = 'access_tokens:%s' % user
+            if not self.redis.get(key):
+                user = None
+        if user:
             url = '/static/bookmarklet.js'
             url = '%s://%s%s' % (self.request.protocol,
                                  self.request.host,
@@ -48,11 +53,13 @@ class HomeHandler(BaseHandler):
         self.render('home.html', **options)
 
 
-@route('/json(p)?')
+@route('/json', name='json')
+@route('/jsonp', name='jsonp')
 class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
 
     @tornado.web.asynchronous
-    def get(self, jsonp=False):
+    def get(self):
+        jsonp = 'jsonp' in self.request.path
 
         if (self.get_argument('username', None) and
             not self.get_argument('usernames', None)):
@@ -69,6 +76,14 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
                          if x.strip()]
         # make sure it's a unique list
         usernames = set(usernames)
+
+        if not usernames:
+            self.write_json({
+              'ERROR': 'No usernames asked for'
+            })
+            self.finish()
+            return
+
         if jsonp:
             self.jsonp = self.get_argument('callback', 'callback')
         else:
@@ -93,8 +108,7 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
 #                return
 #            if you in usernames:
 #                usernames.remove(you)
-        access_token = self.redis.get('username:%s' % this_username)
-        print "access_token", access_token
+        access_token = self.redis.get('access_tokens:%s' % this_username)
         if access_token:
             access_token = json_decode(access_token)
         if not access_token:
@@ -104,8 +118,8 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
             })
             self.finish()
             return
-        print "USERNAMES"
-        pprint(usernames)
+        #print "USERNAMES"
+        #pprint(usernames)
         #print
 
         results = {}
@@ -134,8 +148,6 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
                 ),
                 )
         elif usernames:
-            print "ACCESS_TOKEN"
-            print access_token
             # See https://dev.twitter.com/docs/api/1/get/friendships/lookup
             self.twitter_request(
                 "/friendships/lookup",
@@ -151,13 +163,13 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
                 self.write_jsonp(self.jsonp, results)
             else:
                 self.write_json(results)
-            print "RETURNING"
-            pprint(results)
+            #print "RETURNING"
+            #pprint(results)
             self.finish()
 
     def _on_lookup(self, result, this_username, data):
-        print "RESULT"
-        pprint(result)
+        #print "RESULT"
+        #pprint(result)
         for each in result:
             if 'followed_by' in each['connections']:
                 data[each['screen_name']] = True
@@ -170,8 +182,8 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
             self.write_jsonp(self.jsonp, data)
         else:
             self.write_json(data)
-        print "RETURNING"
-        pprint(data)
+        #print "RETURNING"
+        #pprint(data)
         self.finish()
 
     def _on_show(self, result, this_username, username, data):
@@ -188,8 +200,8 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
             self.write_jsonp(self.jsonp, data)
         else:
             self.write_json(data)
-        print "RETURNING"
-        pprint(data)
+        #print "RETURNING"
+        #pprint(data)
         self.finish()
 
 
@@ -219,7 +231,7 @@ class TwitterAuthHandler(BaseAuthHandler, tornado.auth.TwitterMixin):
         #email = user_struct.get('email')
         access_token = user_struct['access_token']
         assert access_token
-        self.redis.set('username:%s' % username, json_encode(access_token))
+        self.redis.set('access_tokens:%s' % username, json_encode(access_token))
         #profile_image_url = user_struct.get('profile_image_url', None)
         self.set_secure_cookie("user",
                                username.encode('utf8'),
@@ -248,7 +260,7 @@ class TestServiceHandler(BaseHandler):
         self.render('test.html', **options)
 
 
-@route('/following/(\w+)')
+@route('/following/(\w+)', name='following')
 class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
 
     @tornado.web.asynchronous
@@ -256,14 +268,19 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         options = {'username': username}
         this_username = self.get_current_user()
         if not this_username:
-            self.redirect('auth_twitter')
+            self.redirect(self.reverse_url('auth_twitter'))
             return
         options['this_username'] = this_username
         options['follows'] = None
         key = 'follows:%s:%s' % (this_username, username)
         value = self.redis.get(key)
         if value is None:
-            access_token = self.redis.get('username:%s' % this_username)
+            access_token = self.redis.get('access_tokens:%s' % this_username)
+            if not access_token:
+                self.write('ERROR: Not authorized with Twitter for %s' %
+                            self.request.host)
+                self.finish()
+                return
             access_token = json_decode(access_token)
             self.twitter_request(
               "/friendships/show",
@@ -280,6 +297,8 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
             #self._fetch_info(options)
 
     def _on_friendship(self, result, key, options):
+        #print "(_on_friendship)RESULT"
+        #pprint(result)
         if isinstance(result, bool):
             value = result
         else:
@@ -298,7 +317,7 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         value = self.redis.get(key)
 
         if value is None:
-            access_token = self.redis.get('username:%s' %
+            access_token = self.redis.get('access_tokens:%s' %
                                           options['this_username'])
             access_token = json_decode(access_token)
             self.twitter_request(
@@ -319,6 +338,8 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
     def _on_info(self, result, key, options):
         if isinstance(result, basestring):
             result = json_decode(result)
+        #print "(_on_info)RESULT"
+        #pprint(result)
         if key:
             assert result
             self.redis.setex(key, json_encode(result), 60 * 60)
@@ -331,7 +352,7 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
 
     def _render(self, options):
         if options['follows']:
-            page_title = '%s follows you'
+            page_title = '%s follows me'
         else:
             page_title = '%s is too cool for me'
         options['page_title'] = page_title % options['username']
@@ -344,23 +365,18 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         self.render('following.html', **options)
 
     def _set_ratio(self, options, key):
-        try:
-            value = options[key]
-            followers = options['info'][value]['followers_count']
-            following = options['info'][value]['friends_count']
-            ratio = 1.0 * followers / following
-            options['info'][value]['ratio'] = '%.1f' % ratio
-            self.redis.sadd('allusernames', value)
-            key = 'ratios'
-            self.redis.zadd(key, **{value: ratio})
-            _usernames = self.redis.zrange(key, 0, -1, withscores=False)
-            _usernames.reverse()
-            options['info'][value]['rank'] = _usernames.index(value)
+        value = options[key]
+        followers = options['info'][value]['followers_count']
+        following = options['info'][value]['friends_count']
+        ratio = 1.0 * followers / following
+        options['info'][value]['ratio'] = '%.1f' % ratio
+        self.redis.sadd('allusernames', value)
+        key = 'ratios'
+        self.redis.zadd(key, **{value: ratio})
+        _usernames = self.redis.zrange(key, 0, -1, withscores=False)
+        _usernames.reverse()
+        options['info'][value]['rank'] = _usernames.index(value)
 
-        except:
-            logging.error("KEY=%r, VALUE=%r, options['info']=%s" %
-                          (key, value, pformat(options['info'])))
-            raise
 
 
 @route(r'/coolest')
