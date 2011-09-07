@@ -77,17 +77,19 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
         # make sure it's a unique list
         usernames = set(usernames)
 
-        if not usernames:
-            self.write_json({
-              'ERROR': 'No usernames asked for'
-            })
-            self.finish()
-            return
-
         if jsonp:
             self.jsonp = self.get_argument('callback', 'callback')
         else:
             self.jsonp = False
+
+        if not usernames:
+            msg = {'ERROR': 'No usernames asked for'}
+            if jsonp:
+                self.write_jsonp(self.jsonp, msg)
+            else:
+                self.write_json(msg)
+            self.finish()
+            return
 
         #print "USERNAMES"
         #print usernames
@@ -112,10 +114,12 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
         if access_token:
             access_token = json_decode(access_token)
         if not access_token:
-            self.write_json({
-              'ERROR': ('Not authorized with Twitter for %s' %
-                        self.request.host)
-            })
+            msg = {'ERROR': ('Not authorized. Go to http://%s and sign in' %
+                              self.request.host)}
+            if self.jsonp:
+                self.write_jsonp(self.jsonp, msg)
+            else:
+                self.write_json(msg)
             self.finish()
             return
         #print "USERNAMES"

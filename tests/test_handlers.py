@@ -127,6 +127,16 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertEqual(response.body, 'FOO({"obama": false})')
 
+    def test_jsonp(self):
+        url = self.reverse_url('jsonp')
+        response = self.client.get(url, {'username': 'obama'})
+        self.assertEqual(response.code, 200)
+        self.assertTrue(response.body.startswith('callback({"ERROR":'))
+        response = self.client.get(url, {'username': 'obama', 'callback': 'FOO'})
+        self.assertEqual(response.code, 200)
+        self.assertTrue(response.body.startswith('FOO({"ERROR":'))
+
+
     def test_following_none_cached(self):
         FollowsHandler.twitter_request = \
           make_mock_twitter_request([
