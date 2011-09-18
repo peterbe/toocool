@@ -227,7 +227,8 @@ class TwitterAuthHandler(BaseAuthHandler, tornado.auth.TwitterMixin):
 
     def _on_auth(self, user_struct):
         if not user_struct:
-            raise HTTPError(500, "Twitter auth failed")
+            self.redirect(self.reverse_url('auth_twitter_failed'))
+            return
         username = user_struct.get('username')
         self.redis.rpush('usernames', username)
         #first_name = user_struct.get('first_name', user_struct.get('name'))
@@ -242,6 +243,12 @@ class TwitterAuthHandler(BaseAuthHandler, tornado.auth.TwitterMixin):
                                expires_days=30, path='/')
         self.redirect('/')
 
+@route('/auth/twitter/failed', name='auth_twitter_failed')
+class TwitterAuthFailedHandler(BaseAuthHandler):
+    def get(self):
+        options = {}
+        options['page_title'] = "Twitter authentication failed"
+        self.render('twitter_auth_failed.html', **options)
 
 @route(r'/auth/logout/', name='logout')
 class AuthLogoutHandler(BaseAuthHandler):

@@ -32,6 +32,24 @@ class HandlersTestCase(BaseHTTPTestCase):
                          json.dumps({'key': '0123456789',
                                      'secret': 'xxx'}))
 
+
+    def test_twitter_login_twitter_failing(self):
+        TwitterAuthHandler.get_authenticated_user = \
+          make_twitter_get_authenticated_user_callback(None)
+        url = self.reverse_url('auth_twitter')
+        response = self.client.get(url)
+        self.assertEqual(response.code, 302)
+        self.assertTrue('twitter.com' in response.headers['location'])
+
+        response = self.client.get(url, {'oauth_token':'xxx'})
+        self.assertEqual(response.code, 302)
+        to_url = self.reverse_url('auth_twitter')
+        self.assertTrue(to_url in response.headers['location'])
+
+        response = self.client.get(response.headers['location'])
+        self.assertEqual(response.code, 200)
+        self.assertTrue(to_url in response.body)
+
     def _login(self, username=u'peterbe', name=u'Peter Bengtsson',
                      email=None):
         struct = {

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Sorry, Twitter's authentication link failed</h1>
+
+<p>Unfortunately, sometimes Twitter's server run over capacity and just simply don't work as
+expected. Most of them time, the solution is very simple...</p>
+
+<h2 style="padding:20px;text-align:center"><a href="{{ reverse_url('auth_twitter') }}">Try again &rarr;</a></h2>
+
+{% end %}
