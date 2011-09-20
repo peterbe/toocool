@@ -32,7 +32,6 @@ class HandlersTestCase(BaseHTTPTestCase):
                          json.dumps({'key': '0123456789',
                                      'secret': 'xxx'}))
 
-
     def test_twitter_login_twitter_failing(self):
         TwitterAuthHandler.get_authenticated_user = \
           make_twitter_get_authenticated_user_callback(None)
@@ -286,6 +285,68 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertTrue('<title>chris follows me' in response.body)
         self.assertTrue('%.1f' % (400.0/1000) in response.body)
         self.assertTrue('%.1f' % (417.0/330) in response.body)
+
+    def test_following_temporary_glitch_on_info(self):
+        url = self.reverse_url('following', 'obama')
+        response = self.client.get(url)
+        self.assertEqual(response.code, 302)
+        self.assertTrue(self.reverse_url('auth_twitter') in
+                        response.headers['location'])
+
+        self._login()
+        FollowingHandler.twitter_request = \
+          make_mock_twitter_request({
+            "/friendships/show": {u'relationship': {
+                                    u'target': {u'followed_by': False,
+                                    u'following': False,
+                                    u'screen_name': u'obama'}}},
+            "/users/show?screen_name=obama": {u'followers_count': 41700,
+                            u'following': False,
+                            u'friends_count': 1300,
+                            u'name': u'Barak',
+                            u'screen_name': u'obama',
+                            },
+            "/users/show?screen_name=peterbe": None
+            })
+
+        response = self.client.get(url)
+        self.assertEqual(response.code, 200)
+        self.assertTrue("Sorry" in response.body)
+        self.assertTrue("Unable to look up info for peterbe"
+                        in response.body)
+
+    def test_following_temporary_glitch_on_friendship(self):
+        url = self.reverse_url('following', 'obama')
+        response = self.client.get(url)
+        self.assertEqual(response.code, 302)
+        self.assertTrue(self.reverse_url('auth_twitter') in
+                        response.headers['location'])
+
+        self._login()
+        FollowingHandler.twitter_request = \
+          make_mock_twitter_request({
+            "/friendships/show": None,
+            "/users/show?screen_name=obama": {u'followers_count': 41700,
+                            u'following': False,
+                            u'friends_count': 1300,
+                            u'name': u'Barak',
+                            u'screen_name': u'obama',
+                            },
+            "/users/show?screen_name=peterbe": {
+                            u'followers_count': 417,
+                            u'following': False,
+                            u'friends_count': 330,
+                            u'name': u'Peter Bengtsson',
+                            u'screen_name': u'peterbe',
+                            }
+            })
+
+        response = self.client.get(url)
+        self.assertEqual(response.code, 200)
+        self.assertTrue("Sorry" in response.body)
+        self.assertTrue("Unable to look up friendship for obama"
+                        in response.body)
+
 
 def make_twitter_get_authenticated_user_callback(struct):
     def twitter_get_authenticated_user(self, callback, **kw):

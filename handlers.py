@@ -227,17 +227,16 @@ class TwitterAuthHandler(BaseAuthHandler, tornado.auth.TwitterMixin):
 
     def _on_auth(self, user_struct):
         if not user_struct:
-            self.redirect(self.reverse_url('auth_twitter_failed'))
+            url = self.reverse_url('auth_twitter_failed')
+            if self.request.query:
+                url += '?%s' % self.request.query
+            self.redirect(url)
             return
         username = user_struct.get('username')
         self.redis.rpush('usernames', username)
-        #first_name = user_struct.get('first_name', user_struct.get('name'))
-        #last_name = user_struct.get('last_name')
-        #email = user_struct.get('email')
         access_token = user_struct['access_token']
         assert access_token
         self.redis.set('access_tokens:%s' % username, json_encode(access_token))
-        #profile_image_url = user_struct.get('profile_image_url', None)
         self.set_secure_cookie("user",
                                username.encode('utf8'),
                                expires_days=30, path='/')
@@ -308,8 +307,12 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
             #self._fetch_info(options)
 
     def _on_friendship(self, result, key, options):
-        #print "(_on_friendship)RESULT"
-        #pprint(result)
+        if result is None:
+            options['error'] = ("Unable to look up friendship for %s" %
+                                options['username'])
+            self._render(options)
+            return
+
         if isinstance(result, bool):
             value = result
         else:
@@ -336,23 +339,25 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
               screen_name=username,
               access_token=access_token,
               callback=self.async_callback(
-                lambda x: self._on_info(x, key, options)
+                lambda x: self._on_info(x, key, options, username)
               ),
             )
         else:
-            self._on_info(json_decode(value), None, options)
+            self._on_info(json_decode(value), None, options, username)
             #value = json_decode(value)
             #options['info'] = value
             #pprint(value)
             #self._render(options)
 
-    def _on_info(self, result, key, options):
+    def _on_info(self, result, key, options, username):
+        if result is None:
+            options['error'] = "Unable to look up info for %s" % username
+            self._render(options)
+            return
+
         if isinstance(result, basestring):
             result = json_decode(result)
-        #print "(_on_info)RESULT"
-        #pprint(result)
         if key:
-            assert result
             self.redis.setex(key, json_encode(result), 60 * 60)
         if 'info' not in options:
             options['info'] = {options['username']: result}
@@ -362,18 +367,18 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
             self._render(options)
 
     def _render(self, options):
-        if options['follows']:
-            page_title = '%s follows me'
+        if 'error' not in options:
+            if options['follows']:
+                page_title = '%s follows me'
+            else:
+                page_title = '%s is too cool for me'
+            self._set_ratio(options, 'username')
+            self._set_ratio(options, 'this_username')
+            options['page_title'] = page_title % options['username']
+            self.render('following.html', **options)
         else:
-            page_title = '%s is too cool for me'
-        options['page_title'] = page_title % options['username']
-        #options['info_print'] = pformat(options['info'])
-        #_followers = options['info']['followers_count']
-        #_following = options['info']['friends_count']
-        #options['ratios'][options['username']] =
-        self._set_ratio(options, 'username')
-        self._set_ratio(options, 'this_username')
-        self.render('following.html', **options)
+            options['page_title'] = 'Error :('
+            self.render('following_error.html', **options)
 
     def _set_ratio(self, options, key):
         value = options[key]

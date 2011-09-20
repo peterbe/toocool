@@ -30,31 +30,30 @@ th.label { border-bottom:1px solid #999; }
 
 <div id="chart_div"></div>
 
-    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-    <script type="text/javascript">
-      google.load("visualization", "1", {packages:["corechart"]});
-      google.setOnLoadCallback(drawChart);
-      function drawChart() {
-        var data = new google.visualization.DataTable();
-        data.addColumn('string', 'Year');
-        data.addColumn('number', 'followers');
-        data.addColumn('number', 'following');
-        data.addRows(2);
-        data.setValue(0, 0, '{{ username }}');
-        data.setValue(0, 1, {{ info[username]['followers_count'] }});
-        data.setValue(0, 2, {{ info[username]['friends_count'] }});
-        data.setValue(1, 0, 'you');
-        data.setValue(1, 1, {{ info[this_username]['followers_count'] }});
-        data.setValue(1, 2, {{ info[this_username]['friends_count'] }});
-
-        var chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
-        chart.draw(data, {width: 600, height: 400,
-                          title: 'Coolness in terms of following and followers',
-                          vAxis: {title: 'number of people'},
-                          hAxis: {title: 'cool people have bigger \'followers\' than \'following\''}
-                         });
-      }
-    </script>
+<script type="text/javascript" src="https://www.google.com/jsapi"></script>
+<script type="text/javascript">
+  google.load("visualization", "1", {packages:["corechart"]});
+  google.setOnLoadCallback(drawChart);
+  function drawChart() {
+    var data = new google.visualization.DataTable();
+    data.addColumn('string', 'Year');
+    data.addColumn('number', 'followers');
+    data.addColumn('number', 'following');
+    data.addRows(2);
+    data.setValue(0, 0, '{{ username }}');
+    data.setValue(0, 1, {{ info[username]['followers_count'] }});
+    data.setValue(0, 2, {{ info[username]['friends_count'] }});
+    data.setValue(1, 0, 'you');
+    data.setValue(1, 1, {{ info[this_username]['followers_count'] }});
+    data.setValue(1, 2, {{ info[this_username]['friends_count'] }});
+     var chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
+    chart.draw(data, {width: 600, height: 400,
+                      title: 'Coolness in terms of following and followers',
+                      vAxis: {title: 'number of people'},
+                      hAxis: {title: 'cool people have bigger \'followers\' than \'following\''}
+                     });
+  }
+</script>
 
 <table>
   <tr>
