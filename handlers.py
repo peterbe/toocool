@@ -383,7 +383,7 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         value = options[key]
         followers = options['info'][value]['followers_count']
         following = options['info'][value]['friends_count']
-        ratio = 1.0 * followers / following
+        ratio = 1.0 * followers / max(following, 1)
         options['info'][value]['ratio'] = '%.1f' % ratio
         self.redis.sadd('allusernames', value)
         key = 'ratios'
@@ -394,7 +394,7 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
 
 
 
-@route(r'/coolest')
+@route(r'/coolest', name='coolest')
 class CoolestHandler(BaseHandler):
 
     def get(self):

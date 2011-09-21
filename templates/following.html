@@ -78,7 +78,7 @@ th.label { border-bottom:1px solid #999; }
   </tr>
   {% if info[username].get('rank') and info[this_username].get('rank') %}
   <tr>
-    <td class="label">rank<sup>1</sup>:</td>
+    <td class="label"><a href="{{ reverse_url('coolest') }}">rank</a> <sup>1</sup>:</td>
     <td>{{ info[username]['rank'] }}</td>
     <td>{{ info[this_username]['rank'] }}</td>
   </tr>

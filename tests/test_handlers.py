@@ -41,13 +41,9 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertTrue('twitter.com' in response.headers['location'])
 
         response = self.client.get(url, {'oauth_token':'xxx'})
-        self.assertEqual(response.code, 302)
-        to_url = self.reverse_url('auth_twitter')
-        self.assertTrue(to_url in response.headers['location'])
-
-        response = self.client.get(response.headers['location'])
         self.assertEqual(response.code, 200)
-        self.assertTrue(to_url in response.body)
+        self.assertTrue("Sorry" in response.body)
+        self.assertTrue("Try again" in response.body)
 
     def _login(self, username=u'peterbe', name=u'Peter Bengtsson',
                      email=None):
@@ -346,6 +342,41 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertTrue("Sorry" in response.body)
         self.assertTrue("Unable to look up friendship for obama"
                         in response.body)
+
+    def test_following_someone_following_0(self):
+        url = self.reverse_url('following', 'obama')
+        response = self.client.get(url)
+        self.assertEqual(response.code, 302)
+        self.assertTrue(self.reverse_url('auth_twitter') in
+                        response.headers['location'])
+
+        self._login()
+        FollowingHandler.twitter_request = \
+          make_mock_twitter_request({
+            "/friendships/show": {u'relationship': {
+                                    u'target': {u'followed_by': False,
+                                    u'following': False,
+                                    u'screen_name': u'obama'}}},
+            "/users/show?screen_name=obama": {u'followers_count': 41700,
+                            u'following': False,
+                            u'friends_count': 0,
+                            u'name': u'Barak',
+                            u'screen_name': u'obama',
+                            },
+            "/users/show?screen_name=peterbe": {
+                            u'followers_count': 417,
+                            u'following': False,
+                            u'friends_count': 330,
+                            u'name': u'Peter Bengtsson',
+                            u'screen_name': u'peterbe',
+                            }
+            })
+
+        response = self.client.get(url)
+        self.assertEqual(response.code, 200)
+        self.assertTrue('<title>obama is too cool for me' in response.body)
+        self.assertTrue('%.1f' % (417.0/330) in response.body)
+        self.assertTrue('%.1f' % (41700.0/1) in response.body)
 
 
 def make_twitter_get_authenticated_user_callback(struct):
