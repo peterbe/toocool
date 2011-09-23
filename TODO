@@ -1,19 +1,5 @@
 * Do it for this page too
   https://twitter.com/#!/dotton/following
 
-* Solve this traceback:
-
-[W 110906 13:20:06 auth:327] Could not fetch access token
-[W 110906 13:20:06 web:1006] 500 GET /auth/twitter/?oauth_token=5lmsRwZ12GQjMEDUSZZzeM3CmVN3668nPucjurMiwI&oauth_verifier=nhqvtUN3Il50KtiiHCozbxyKZHhRgVl0OzHINSc (127.0.0.1): Twitter auth failed
-[E 110906 13:20:06 web:1370] 500 GET /auth/twitter/?oauth_token=5lmsRwZ12GQjMEDUSZZzeM3CmVN3668nPucjurMiwI&oauth_verifier=nhqvtUN3Il50KtiiHCozbxyKZHhRgVl0OzHINSc (127.0.0.1) 304.70ms
-[W 110906 13:20:06 simple_httpclient:272] uncaught exception
-    Traceback (most recent call last):
-      File "/Users/peterbe/virtualenvs/followsme/lib/python2.6/site-packages/tornado/simple_httpclient.py", line 270, in cleanup
-        yield
-      File "/Users/peterbe/virtualenvs/followsme/lib/python2.6/site-packages/tornado/stack_context.py", line 183, in wrapped
-        callback(*args, **kwargs)
-      File "/Users/peterbe/virtualenvs/followsme/lib/python2.6/site-packages/tornado/simple_httpclient.py", line 351, in _on_chunk_length
-        self._on_body(b('').join(self.chunks))
-      File "/Users/peterbe/virtualenvs/followsme/lib/python2.6/site-packages/tornado/simple_httpclient.py", line 341, in _on_body
-        self.callback(response)
-    TypeError: 'NoneType' object is not callable
+* Override log_request in base handler so that only errors and
+  warnings are actually logged.

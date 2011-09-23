@@ -1,33 +1,78 @@
 {% extends "base.html" %}
 
 {% block extra_header %}
-<h3>Service to allow you to find out who of the people you follow also follow you on <a href="https://twitter.com">Twitter</a></h3>
+<h3>Find out who on <a href="https://twitter.com/">Twitter</a> follows you back <span class="grey">(and who is just too cool for you)</span></h3>
 {% end %}
 
 
 {% block content %}
 
-
 {% if user %}
-<p><strong>{{ user }}</strong>
-<span style="font-size:0.7em">(<a href="/auth/logout/">Log out</a>)</span>
+<!-- LOGGED IN BLOCK -->
+<p class="login">
+	<span class="tick twitter-login">&#x2713;</span>
+	logged in as <strong>@{{ user }}</strong>
+	<span style="font-size:0.7em">(<a href="/auth/logout/">Log out</a>)</span>
+	<br/>
+	<a href="/test">Test the service manually</a>
 </p>
-<p><a href="/test">Test the service</a></p>
-
-<p>Drag this link (bookmarklet) into your browser's bookmarks toolbar:
-<a style="font-weight:bold" onclick="return false"
-   href="javascript:void((function(){var%20e=document.createElement('script');e.setAttribute('type','text/javascript');e.setAttribute('src','{{ full_bookmarklet_url }}');document.body.appendChild(e)})())">Too cool for me?</a>
-</p>
-
+<!-- END LOGGED IN BLOCK -->
 {% else %}
-<p>stranger<br>
-<a href="/auth/twitter/">Log in with Twitter</a>
-<span style="font-size:0.8em;font-weight:bold">(Read-only Twitter authentication)</span>
+
+<!-- NON-LOGGED IN BLOCK -->
+<p class="description">Ever wanted to know who in your twitter feed actually follows you back? <strong>Too Cool For Me</strong> is a simple tool which tells you quickly and easily who is and isn't following you back in your twitter feed. Try it out - login to your twitter account to start.</p>
+<p class="login">
+	<a href="/auth/twitter/" class="twitter-login">
+		<img src="/static/images/twitter-small.png"/>
+		<span class="text">Login with Twitter to start</span>
+	</a>
+	<span class="readonly">&laquo; Read-only authorisation, we cannot post to your account.
+	<br>Once you're logged in, we'll show you what to do.</span>
 </p>
+<!-- END NON-LOGGED IN BLOCK -->
+
 {% end %}
 
+{% if user %}
+<!-- GUIDE BLOCK - only show when logged in -->
+<div class="useit useit-first">
+<p><span class="title">1. Add the bookmarklet</span>
+<span class="explain"><strong>Drag-and-drop</strong> this link (bookmarklet) ...</span>
+<a class="bookmarklet" href="javascript:void((function(){var%20e=document.createElement('script');e.setAttribute('type','text/javascript');e.setAttribute('src','{{ full_bookmarklet_url }}');document.body.appendChild(e)})())" onclick="return false">
+<img src="/static/images/twitter-small-mirrored.png">
+<span class="text">Too cool for me?</span></a>
+</p>
+<p style="clear:left">
+<span class="explain">...into your browser's bookmarks toolbar.</span>
+<img class="screengrab1" src="/static/images/screengrab.png">
+
+</p>
+</div>
+
+<div class="useit">
+<p><span class="title">2. Visit <a href="https://twitter.com/">Twitter</a> <br>and click the bookmarklet!</span>
+<img class="screengrab" src="/static/images/screengrab2.png">
+<span class="explain">On twitter.com click the bookmarklet to see who in your feed is <strong>too cool for you!</strong>
+<br/><br/> It can take a few seconds to show up, so be patient!
+</span>
+</p>
+</div>
+
+
+<!--<p class="useit" style="border-right: none;"><span class="title">3. Tell your friends</span>
+<img src="/static/images/twitter.png">
+<img src="/static/images/facebook.png">
+<img src="/static/images/google.png">
+
+</p>-->
+
+<!-- END GUIDE BLOCK -->
+{% end %}
+<br clear="all">
+
+
 <div style="margin-top:60px">
-<h3>What the heck is this? Watch the screencast:</h3>
+<h3>Confused? Watch the screencast</h3>
 <iframe width="420" height="315" src="http://www.youtube.com/embed/wv-i54IhTfM?rel=0" frameborder="0" allowfullscreen></iframe>
 <p style="font-size:0.8em">Or, <a href="http://youtu.be/wv-i54IhTfM">watch it on YouTube</a></p>
 </div>

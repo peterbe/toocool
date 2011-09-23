@@ -1,0 +1,118 @@
+body {
+font-family: sans-serif;
+background-attachment: fixed;
+background-image: url("/static/images/rock.jpg");
+background-repeat: no-repeat;
+background-position: bottom right;
+margin-left: 40px;
+}
+h1,h2,h3,h4 { font-family: Helvetica, sans-serif; }
+h3 {font-size:20px}
+h1 a { color:black; text-decoration:none; }
+h1 a:hover { color:black; text-decoration:underline; }
+header h1 { font-family: 'Permanent Marker',cursive;margin-top:10px;
+            font-size: 4.2em; letter-spacing: -3px; margin-bottom: 0; }
+/*footer { position: absolute; bottom: 0; }*/
+footer { clear:left; margin-top:100px; }
+footer p { text-align:center; font-family: sans-serif; color:#666; font-size:0.8em; }
+.followsyou { color: green; }
+.followsyounot { color: #333; }
+h1 a .q { color:#999; }
+
+p.description {
+	    font-size: 14px;
+    line-height: 1.6em;
+    width: 600px;
+}
+
+p.login {
+  display: block;
+  float: left;
+  width: 100%;
+}
+
+.twitter-login {
+	/* Firefox 3.6+ */
+    background: -moz-linear-gradient(100% 100% 90deg, #e6e6e6, #f1f1f1);
+    /* Safari 4-5, Chrome 1-9 */ /* -webkit-gradient(<type>, <point> [, <radius>]?, <point> [, <radius>]? [, <stop>]*) */
+    background: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#f1f1f1), to(#e6e6e6));
+    /* Safari 5.1+, Chrome 10+ */
+    background: -webkit-linear-gradient(#e6e6e6, #f1f1f1);
+    /* Opera 11.10+ */
+    background: -o-linear-gradient(#e6e6e6, #f1f1f1);
+    border: 1px solid #FFFFFF;
+    border-radius: 5px 5px 5px 5px;
+    box-shadow: 0 1px 2px #999999;
+    color: #333333;
+    font-size: 17px;
+    font-weight: bold;
+    margin: 0 20px 10px 0;
+    padding: 10px 15px;
+    text-decoration: none;
+    text-shadow: 0 1px 1px #FFFFFF;
+    float: left;
+}
+
+a.twitter-login img, a.bookmarklet img {
+  float: left;
+}
+
+a.twitter-login span.text {
+    float: left;
+    margin-left: 10px;
+    position: relative;
+    top: 4px;
+}
+
+span.readonly {font-size: 11px;}
+
+span.tick {
+    color: green;
+    font-size: 30px;
+    font-weight: bold;
+    padding: 3px 10px 3px 13px;
+}
+
+.useit {
+   float: left; width: 340px; margin: 30px 40px 0pt 0pt;
+   padding-right: 20px;
+   /*height: 260px;*/
+}
+.useit-first {
+   border-right: 1px solid #e1e1e1;
+}
+span.title {font-weight: bold; letter-spacing: -1px; width: 100%; float: left; font-size: 30px; margin-bottom: 20px;}
+span.explain {font-size: 12px; margin-bottom: 12px;}
+a.bookmarklet {
+	/* Firefox 3.6+ */
+    background: -moz-linear-gradient(100% 100% 90deg, #e6e6e6, #f1f1f1);
+    /* Safari 4-5, Chrome 1-9 */ /* -webkit-gradient(<type>, <point> [, <radius>]?, <point> [, <radius>]? [, <stop>]*) */
+    background: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#f1f1f1), to(#e6e6e6));
+    /* Safari 5.1+, Chrome 10+ */
+    background: -webkit-linear-gradient(#e6e6e6, #f1f1f1);
+    /* Opera 11.10+ */
+    background: -o-linear-gradient(#e6e6e6, #f1f1f1);
+    border: 1px solid #FFFFFF;
+    border-radius: 5px 5px 5px 5px;
+    box-shadow: 0 1px 3px #666666;
+    color: #319FBF;
+    font-weight: bold;
+    padding: 10px 15px;
+    text-decoration: none;
+    text-shadow: 0 1px 1px #FFFFFF;
+    margin: 0px 10px 20px 0;
+    float: left;
+    width: 200px;
+    font-size: 20px;
+	}
+
+a.bookmarklet span.text {
+    float: left;
+    margin-left: 10px;
+    position: relative;
+    top: 3px;
+}
+img.screengrab1 {float:left; margin-top: 20px; opacity:0.7;}
+img.screengrab {float: left; margin-right: 10px;}
+h3.confused {font-size:35px;}
+span.grey {color:#c1c1c1;}
