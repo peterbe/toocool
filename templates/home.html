@@ -11,7 +11,7 @@
 <!-- LOGGED IN BLOCK -->
 <p class="login">
 	<span class="tick twitter-login">&#x2713;</span>
-	logged in as <strong>@{{ user }}</strong>
+	logged in as <strong>@{{ user['username'] }}</strong>
 	<span style="font-size:0.7em">(<a href="/auth/logout/">Log out</a>)</span>
 	<br/>
 	<a href="/test">Test the service manually</a>
@@ -39,7 +39,7 @@
 <p><span class="title">1. Add the bookmarklet</span>
 <span class="explain"><strong>Drag-and-drop</strong> this link (bookmarklet) ...</span>
 <a class="bookmarklet" href="javascript:void((function(){var%20e=document.createElement('script');e.setAttribute('type','text/javascript');e.setAttribute('src','{{ full_bookmarklet_url }}');document.body.appendChild(e)})())" onclick="return false">
-<img src="/static/images/twitter-small-mirrored.png" alt="twitter bird">
+<img src="/static/images/twitter-small-mirrored.png" alt="">
 <span class="text">Too cool for me?</span></a>
 </p>
 <p style="clear:left">

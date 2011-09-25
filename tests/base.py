@@ -19,16 +19,15 @@ class _DatabaseTestCaseMixin(object):
     def setup_connection(self):
         if not self._once:
             self._once = True
-            #self.db =
+            self._emptyCollections()
 
     def teardown_connection(self):
-        # do this every time
-        pass
-        #self._emptyCollections()
+        self._emptyCollections()
 
     def _emptyCollections(self):
-        pass
-
+        [self.db.drop_collection(x) for x
+         in self.db.collection_names()
+         if x not in ('system.indexes',)]
 
 
 class BaseAsyncTestCase(AsyncHTTPTestCase, _DatabaseTestCaseMixin):
@@ -55,14 +54,18 @@ class BaseHTTPTestCase(BaseAsyncTestCase, HTTPClientMixin):
 
     def tearDown(self):
         super(BaseHTTPTestCase, self).tearDown()
-        self.db.flushall()
+        self.redis.flushall()
 
     def get_app(self):
         return app.Application(database_name='test')
 
     @property
-    def db(self):
+    def redis(self):
         return self.get_app().redis
+
+    @property
+    def db(self):
+        return self.get_app().db
 
     def decode_cookie_value(self, key, cookie_value):
         try:

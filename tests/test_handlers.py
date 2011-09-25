@@ -14,9 +14,10 @@ class HandlersTestCase(BaseHTTPTestCase):
     def test_homepage(self):
         response = self.client.get('/')
         self.assertEqual(response.code, 200)
-        self.assertTrue('stranger' in response.body)
+        self.assertTrue('Login with' in response.body)
 
     def test_twitter_login(self):
+        assert not self.db.User.find_one({'username': 'peterbe'})
         TwitterAuthHandler.get_authenticated_user = \
           twitter_get_authenticated_user
         url = self.reverse_url('auth_twitter')
@@ -27,10 +28,17 @@ class HandlersTestCase(BaseHTTPTestCase):
         response = self.client.get(url, {'oauth_token':'xxx'})
         self.assertEqual(response.code, 302)
 
-        key = 'access_tokens:peterbe'
-        self.assertEqual(self.db.get(key),
-                         json.dumps({'key': '0123456789',
-                                     'secret': 'xxx'}))
+        user = self.db.User.find_one({'username': 'peterbe'})
+        self.assertEqual(user['access_token'],
+                         {'key': '0123456789',
+                          'secret': 'xxx'})
+
+        url = self.reverse_url('logout')
+        response = self.client.get(url)
+        self.assertEqual(response.code, 302)
+        response = self.client.get('/')
+        self.assertEqual(response.code, 200)
+        self.assertTrue('Login with Twitter' in response.body)
 
     def test_twitter_login_twitter_failing(self):
         TwitterAuthHandler.get_authenticated_user = \
@@ -70,24 +78,24 @@ class HandlersTestCase(BaseHTTPTestCase):
         url = self.reverse_url('test')
         response = self.client.get('/')
         self.assertEqual(response.code, 200)
-        self.assertTrue('stranger' in response.body)
+        self.assertTrue('Login with Twitter to start' in response.body)
 
         self._login(username='peppe')
         response = self.client.get('/')
         self.assertEqual(response.code, 200)
-        self.assertTrue('stranger' not in response.body)
-        assert self.db.get('access_tokens:peppe')
-        self.db.delete('access_tokens:peppe')
-        assert not self.db.get('access_tokens:peppe')
-        response = self.client.get('/')
-        self.assertEqual(response.code, 200)
-        self.assertTrue('stranger' in response.body)
+        self.assertTrue('Login with Twitter to start' not in response.body)
 
     def test_test_service(self):
-        self._login()
         url = self.reverse_url('test')
         response = self.client.get(url)
+        self.assertEqual(response.code, 302)
+        self.assertTrue(self.reverse_url('auth_twitter') in
+                        response.headers['location'])
+        self._login()
+
+        response = self.client.get(url)
         self.assertEqual(response.code, 200)
+
 
     def test_json(self):
         FollowsHandler.twitter_request = \
@@ -123,6 +131,50 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertEqual(response.code, 200)
         struct = json.loads(response.body)
         self.assertEqual(struct['obama'], False)
+
+    def test_json_with_overriding_you(self):
+        FollowsHandler.twitter_request = \
+          make_mock_twitter_request({u'relationship': {
+                   u'target': {u'followed_by': False,
+                               u'following': False,
+                               u'screen_name': u'obama'}}})
+
+        self._login()
+        url = self.reverse_url('json')
+        response = self.client.get(url, {'username': 'obama', 'you': 'bob'})
+        self.assertEqual(response.code, 200)
+        struct = json.loads(response.body)
+        self.assertTrue(struct['ERROR'])
+
+        url = self.reverse_url('jsonp')
+        response = self.client.get(url, {'username': 'obama', 'you': 'bob'})
+        self.assertEqual(response.code, 200)
+        self.assertTrue('ERROR' in response.body)
+
+        url = self.reverse_url('json')
+        response = self.client.get(url, {'username': 'obama', 'you': 'peterbe'})
+        self.assertEqual(response.code, 200)
+        struct = json.loads(response.body)
+        self.assertEqual(struct['obama'], False)
+
+        url = self.reverse_url('jsonp')
+        response = self.client.get(url, {'username': 'obama', 'you': 'peterbe'})
+        self.assertEqual(response.code, 200)
+        self.assertTrue('"obama":' in response.body)
+        self.assertTrue('false' in response.body)
+
+        url = self.reverse_url('json')
+        # do it again and it should be picked up by the cache
+        FollowsHandler.twitter_request = \
+          make_mock_twitter_request({u'relationship': {
+                   u'target': {u'followed_by': True,
+                               u'following': True,
+                               u'screen_name': u'obama'}}})
+        response = self.client.get(url, {'username': 'obama'})
+        self.assertEqual(response.code, 200)
+        struct = json.loads(response.body)
+        self.assertEqual(struct['obama'], False)
+
 
     def test_jsonp(self):
         FollowsHandler.twitter_request = \

@@ -7,6 +7,7 @@ from _run_tests import TEST_MODULES
 COVERAGE_MODULES = [
     'app',
     'handlers',
+    'models',
 ]
 
 def all():

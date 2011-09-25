@@ -33,6 +33,10 @@ class Application(tornado.web.Application):
         self.redis = redis.client.Redis(settings.REDIS_HOST,
                                         settings.REDIS_PORT)
 
+        from models import connection
+        self.db = connection[settings.DATABASE_NAME]
+
+
 
 def main():  # pragma: no cover
     tornado.options.parse_command_line()

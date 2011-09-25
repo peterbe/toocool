@@ -6,7 +6,10 @@ from tornado.web import HTTPError
 from tornado_utils.routes import route
 #from tornado_utils.decorators import login_required
 from tornado.escape import json_decode, json_encode
+from pymongo.objectid import InvalidId, ObjectId
 #import settings
+
+from models import User
 
 
 class BaseHandler(tornado.web.RequestHandler):
@@ -20,13 +23,20 @@ class BaseHandler(tornado.web.RequestHandler):
         self.write('%s(%s)' % (callback, tornado.escape.json_encode(struct)))
 
     def get_current_user(self):
-        username = self.get_secure_cookie('user')
-        if username:
-            return unicode(username, 'utf8')
+        _id = self.get_secure_cookie('user')
+        if _id:
+            try:
+                return self.db.User.find_one({'_id': ObjectId(_id)})
+            except InvalidId:  # pragma: no cover
+                return self.db.User.find_one({'username': _id})
 
     @property
     def redis(self):
         return self.application.redis
+
+    @property
+    def db(self):
+        return self.application.db
 
 
 @route('/')
@@ -37,11 +47,6 @@ class HomeHandler(BaseHandler):
           'page_title': 'Too Cool for Me?',
         }
         user = self.get_current_user()
-        if user:
-            # check that we still have the access token
-            key = 'access_tokens:%s' % user
-            if not self.redis.get(key):
-                user = None
         if user:
             url = '/static/bookmarklet.js'
             url = '%s://%s%s' % (self.request.protocol,
@@ -96,23 +101,18 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
 
         # All of this is commented out until I can figure out why cookie
         # headers aren't sent from bookmarklet's AJAX code
-        this_username = self.get_argument('you', self.get_current_user())
-#        this_username = self.get_current_user()
-#        #print "THIS_USERNAME", repr(this_username)
-#        you = self.get_argument('you', None)  # optional
-#        #print "YOU", repr(you)
-#        if you:
-#            print "THIS_USERNAME", repr(this_username)
-#            if this_username != you:
-#                self.write_json({
-#                  'ERROR': "Logged in on %s as '%s'" % this_username
-#                })
-#                return
-#            if you in usernames:
-#                usernames.remove(you)
-        access_token = self.redis.get('access_tokens:%s' % this_username)
-        if access_token:
-            access_token = json_decode(access_token)
+        this_username = self.get_argument('you', None)
+        access_token = None
+        if this_username is not None:
+            user = self.db.User.find_one({'username': this_username})
+            if user:
+                access_token = user['access_token']
+        else:
+            user = self.get_current_user()
+            if user:
+                this_username = user['username']
+                access_token = user['access_token']
+
         if not access_token:
             msg = {'ERROR': ('Not authorized. Go to http://%s and sign in' %
                               self.request.host)}
@@ -122,9 +122,6 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
                 self.write_json(msg)
             self.finish()
             return
-        #print "USERNAMES"
-        #pprint(usernames)
-        #print
 
         results = {}
         # pick some up already from the cache
@@ -232,12 +229,18 @@ class TwitterAuthHandler(BaseAuthHandler, tornado.auth.TwitterMixin):
             self.render('twitter_auth_failed.html', **options)
             return
         username = user_struct.get('username')
-        self.redis.rpush('usernames', username)
+        #self.redis.rpush('usernames', username)
         access_token = user_struct['access_token']
         assert access_token
-        self.redis.set('access_tokens:%s' % username, json_encode(access_token))
+        user = self.db.User.find_one({'username': username})
+        if user is None:
+            user = self.db.User()
+            user['username'] = username
+            user['access_token'] = access_token
+            user.save()
+
         self.set_secure_cookie("user",
-                               username.encode('utf8'),
+                               str(user['_id']),
                                expires_days=30, path='/')
         self.redirect('/')
 
@@ -275,22 +278,19 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
     @tornado.web.asynchronous
     def get(self, username):
         options = {'username': username}
-        this_username = self.get_current_user()
-        if not this_username:
+        #this_username = self.get_current_user()
+        current_user = self.get_current_user()
+        if not current_user:
             self.redirect(self.reverse_url('auth_twitter'))
             return
+        this_username = current_user['username']
         options['this_username'] = this_username
         options['follows'] = None
         key = 'follows:%s:%s' % (this_username, username)
         value = self.redis.get(key)
         if value is None:
-            access_token = self.redis.get('access_tokens:%s' % this_username)
-            if not access_token:
-                self.write('ERROR: Not authorized with Twitter for %s' %
-                            self.request.host)
-                self.finish()
-                return
-            access_token = json_decode(access_token)
+            #access_token = self.redis.get('access_tokens:%s' % this_username)
+            access_token = current_user['access_token']
             self.twitter_request(
               "/friendships/show",
               source_screen_name=this_username,
@@ -302,8 +302,6 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
             )
         else:
             self._on_friendship(bool(int(value)), None, options)
-            #options['follows'] = bool(int(value))
-            #self._fetch_info(options)
 
     def _on_friendship(self, result, key, options):
         if result is None:
@@ -326,13 +324,13 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
     def _fetch_info(self, options, username=None):
         if username is None:
             username = options['username']
+
         key = 'info:%s' % username
         value = self.redis.get(key)
 
         if value is None:
-            access_token = self.redis.get('access_tokens:%s' %
-                                          options['this_username'])
-            access_token = json_decode(access_token)
+            user = self.db.User.find_one({'username': options['this_username']})
+            access_token = user['access_token']
             self.twitter_request(
               "/users/show",
               screen_name=username,
@@ -343,10 +341,6 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
             )
         else:
             self._on_info(json_decode(value), None, options, username)
-            #value = json_decode(value)
-            #options['info'] = value
-            #pprint(value)
-            #self._render(options)
 
     def _on_info(self, result, key, options, username):
         if result is None:
@@ -395,7 +389,7 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
 
 
 @route(r'/coolest', name='coolest')
-class CoolestHandler(BaseHandler):
+class CoolestHandler(BaseHandler):  # pragma: no cover  (under development)
 
     def get(self):
         options = {}

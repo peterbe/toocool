@@ -14,6 +14,8 @@ TWITTER_CONSUMER_SECRET = None
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
 
+DATABASE_NAME = 'toocool'
+
 try:
     from local_settings import *
 except ImportError:
