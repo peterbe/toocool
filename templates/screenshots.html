@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ static_url('fancybox/jquery.fancybox-1.3.4.css') }}" type="text/css" media="screen">
+<style>
+.shots a img { border:1px solid #efefef; margin:15px; padding:3px; }
+</style>
+{% end %}
+
+
+{% block content %}
+
+<p class="shots">
+<a href="{{ static_url('images/screenshots/bookmarklet-in-toolbar.png') }}" title="Bookmarklet in toolbar"
+><img src="{{ static_url('images/screenshots/bookmarklet-in-toolbar_small.png') }}" alt="Bookmarklet in toolbar"></a>
+
+<a href="{{ static_url('images/screenshots/on-twitter.png') }}" title="On Twitter"
+><img src="{{ static_url('images/screenshots/on-twitter_small.png') }}" alt="On Twitter"></a>
+
+<a href="{{ static_url('images/screenshots/follows-me.png') }}" title="Someone who follows me"
+><img src="{{ static_url('images/screenshots/follows-me_small.png') }}" alt="Someone who follows me"></a>
+
+<a href="{{ static_url('images/screenshots/too-cool.png') }}" title="Someone who is too cool for me"
+><img src="{{ static_url('images/screenshots/too-cool_small.png') }}" alt="Someone who is too cool for me"></a>
+</p>
+
+{% end %}
+
+{% block extra_js %}
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
+<script src="{{ static_url('fancybox/jquery.fancybox-1.3.4.pack.js') }}"></script>
+<script src="{{ static_url('fancybox/jquery.easing-1.3.pack.js') }}"></script>
+
+<script>
+(function($) {
+  var cache = [];
+  // Arguments are image paths relative to the current page.
+  $.preLoadImages = function() {
+    var args_len = arguments.length;
+    for (var i = args_len; i--;) {
+      var cacheImage = document.createElement('img');
+      cacheImage.src = arguments[i];
+      cache.push(cacheImage);
+    }
+  }
+})(jQuery);
+
+$(function() {
+  $('.shots a').each(function() {
+    $.preLoadImages($(this).attr('href'));
+  });
+
+  $('.shots a').fancybox({
+  'transitionIn': 'elastic',
+  'transitionOut': 'elastic',
+  'easingIn'      : 'easeOutBack',
+  'easingOut'     : 'easeInBack',
+    'titlePosition': 'inside'
+  });
+});
+</script>
+{% end %}

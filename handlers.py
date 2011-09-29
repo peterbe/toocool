@@ -402,3 +402,11 @@ class CoolestHandler(BaseHandler):  # pragma: no cover  (under development)
         options['page_title'] = \
           "Coolest in the world! ...on Twitter ...using this site"
         self.render('coolest.html', **options)
+
+@route(r'/screenshots', name='screenshots')
+class ScreenshotsHandler(BaseHandler):  # pragma: no cover  (under development)
+
+    def get(self):
+        options = {}
+        options['page_title'] = "Screenshots"
+        self.render('screenshots.html', **options)
