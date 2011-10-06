@@ -4,3 +4,6 @@
 [submodule "vendor/src/MongoLite"]
 	path = vendor/src/MongoLite
 	url = git://github.com/namlook/MongoLite.git
+[submodule "vendor/src/tornado"]
+	path = vendor/src/tornado
+	url = git://github.com/facebook/tornado.git
