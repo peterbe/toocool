@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 import os
+import here
 import tornado.httpserver
 import tornado.ioloop
 import tornado.options
 import tornado.web
 import redis.client
 from tornado.options import define, options
-import settings
 from tornado_utils.routes import route
 import handlers
+import settings
 
 
 define("debug", default=False, help="run in debug mode", type=bool)
