@@ -2,6 +2,8 @@ import logging
 from pprint import pprint, pformat
 import tornado.auth
 import tornado.web
+import tornado.gen
+#from tornado import gen
 from tornado.web import HTTPError
 from tornado_utils.routes import route
 from tornado.escape import json_decode, json_encode
@@ -62,6 +64,7 @@ class HomeHandler(BaseHandler):
 class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
 
     @tornado.web.asynchronous
+    @tornado.gen.engine
     def get(self):
         jsonp = 'jsonp' in self.request.path
 
@@ -94,9 +97,6 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
                 self.write_json(msg)
             self.finish()
             return
-
-        #print "USERNAMES"
-        #print usernames
 
         # All of this is commented out until I can figure out why cookie
         # headers aren't sent from bookmarklet's AJAX code
@@ -138,38 +138,29 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
         if len(usernames) == 1:
             username = list(usernames)[0]
             # See https://dev.twitter.com/docs/api/1/get/friendships/show
-            self.twitter_request(
-                "/friendships/show",
-                source_screen_name=this_username,
-                target_screen_name=username,
-                access_token=access_token,
-                callback=self.async_callback(
-                  lambda x: self._on_show(x, this_username, username, results)
-                ),
-                )
+
+            result = yield tornado.gen.Task(self.twitter_request,
+                                    "/friendships/show",
+                                    source_screen_name=this_username,
+                                    target_screen_name=username,
+                                    access_token=access_token)
+            self._on_show(result, this_username, username, results)
         elif usernames:
             # See https://dev.twitter.com/docs/api/1/get/friendships/lookup
-            self.twitter_request(
-                "/friendships/lookup",
-                screen_name=','.join(usernames),
-                access_token=access_token,
-                callback=self.async_callback(
-                  lambda x: self._on_lookup(x, this_username, results)
-                ),
-            )
+            result = yield tornado.gen.Task(self.twitter_request,
+                                    "/friendships/lookup",
+                                    screen_name=','.join(usernames),
+                                    access_token=access_token)
+            self._on_lookup(result, this_username, results)
         else:
             # all usernames were lookup'able by cache
             if self.jsonp:
                 self.write_jsonp(self.jsonp, results)
             else:
                 self.write_json(results)
-            #print "RETURNING"
-            #pprint(results)
             self.finish()
 
     def _on_lookup(self, result, this_username, data):
-        #print "RESULT"
-        #pprint(result)
         for each in result:
             if 'followed_by' in each['connections']:
                 data[each['screen_name']] = True
@@ -182,13 +173,9 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
             self.write_jsonp(self.jsonp, data)
         else:
             self.write_json(data)
-        #print "RETURNING"
-        #pprint(data)
         self.finish()
 
     def _on_show(self, result, this_username, username, data):
-        #print "RESULT"
-        #pprint(result)
         target_follows = None
         if result and 'relationship' in result:
             target_follows = result['relationship']['target']['following']
@@ -200,8 +187,6 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
             self.write_jsonp(self.jsonp, data)
         else:
             self.write_json(data)
-        #print "RETURNING"
-        #pprint(data)
         self.finish()
 
 
@@ -228,7 +213,6 @@ class TwitterAuthHandler(BaseAuthHandler, tornado.auth.TwitterMixin):
             self.render('twitter_auth_failed.html', **options)
             return
         username = user_struct.get('username')
-        #self.redis.rpush('usernames', username)
         access_token = user_struct['access_token']
         assert access_token
         user = self.db.User.find_one({'username': username})
@@ -243,12 +227,6 @@ class TwitterAuthHandler(BaseAuthHandler, tornado.auth.TwitterMixin):
                                expires_days=30, path='/')
         self.redirect('/')
 
-#@route('/auth/twitter/failed', name='auth_twitter_failed')
-#class TwitterAuthFailedHandler(BaseAuthHandler):
-#    def get(self):
-#        options = {}
-#        options['page_title'] = "Twitter authentication failed"
-#        self.render('twitter_auth_failed.html', **options)
 
 @route(r'/auth/logout/', name='logout')
 class AuthLogoutHandler(BaseAuthHandler):
@@ -275,6 +253,7 @@ class TestServiceHandler(BaseHandler):
 class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
 
     @tornado.web.asynchronous
+    @tornado.gen.engine
     def get(self, username):
         options = {'username': username}
         #this_username = self.get_current_user()
@@ -288,19 +267,16 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         key = 'follows:%s:%s' % (this_username, username)
         value = self.redis.get(key)
         if value is None:
-            #access_token = self.redis.get('access_tokens:%s' % this_username)
             access_token = current_user['access_token']
-            self.twitter_request(
-              "/friendships/show",
-              source_screen_name=this_username,
-              target_screen_name=username,
-              access_token=access_token,
-              callback=self.async_callback(
-                lambda x: self._on_friendship(x, key, options)
-              ),
-            )
+            result = yield tornado.gen.Task(self.twitter_request,
+                                    "/friendships/show",
+                                    source_screen_name=this_username,
+                                    target_screen_name=username,
+                                    access_token=access_token)
         else:
-            self._on_friendship(bool(int(value)), None, options)
+            result = bool(int(value))
+            key = None
+        self._on_friendship(result, key, options)
 
     def _on_friendship(self, result, key, options):
         if result is None:
@@ -320,6 +296,7 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         options['follows'] = value
         self._fetch_info(options)
 
+    @tornado.gen.engine
     def _fetch_info(self, options, username=None):
         if username is None:
             username = options['username']
@@ -330,23 +307,20 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         if value is None:
             user = self.db.User.find_one({'username': options['this_username']})
             access_token = user['access_token']
-            self.twitter_request(
-              "/users/show",
-              screen_name=username,
-              access_token=access_token,
-              callback=self.async_callback(
-                lambda x: self._on_info(x, key, options, username)
-              ),
-            )
+            result = yield tornado.gen.Task(self.twitter_request,
+                                            "/users/show",
+                                            screen_name=username,
+                                            access_token=access_token)
         else:
-            self._on_info(json_decode(value), None, options, username)
+            result = json_decode(value)
+            key = None
+        self._on_info(result, key, options, username)
 
     def _on_info(self, result, key, options, username):
         if result is None:
             options['error'] = "Unable to look up info for %s" % username
             self._render(options)
             return
-
         if isinstance(result, basestring):
             result = json_decode(result)
         if key:
