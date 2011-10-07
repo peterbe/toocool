@@ -464,6 +464,7 @@ class EveryoneIFollowHandler(BaseHandler, tornado.auth.TwitterMixin):
 
         assert len(result) == len(screen_names)
 
+        screen_names.sort()
         options = {}
         options['screen_names'] = screen_names
         options['page_title'] = "Everyone I follow"
