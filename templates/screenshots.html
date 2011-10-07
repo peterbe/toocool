@@ -50,17 +50,32 @@
 })(jQuery);
 
 $(function() {
-  $('.shots a').each(function() {
-    $.preLoadImages($(this).attr('href'));
-  });
 
   $('.shots a').fancybox({
-  'transitionIn': 'elastic',
-  'transitionOut': 'elastic',
-  'easingIn'      : 'easeOutBack',
-  'easingOut'     : 'easeInBack',
-    'titlePosition': 'inside'
+    'transitionIn': 'elastic',
+    'transitionOut': 'elastic',
+    'easingIn'      : 'easeOutBack',
+    'easingOut'     : 'easeInBack',
+    'titlePosition': 'inside',
+    onComplete: function(element) {
+      var nth, href = $(element).attr('href');
+      $('.shots a').each(function(i, e) {
+        if ($(e).attr('href') == href) {
+	  location.hash = '' + (i + 1);
+	}
+      });
+    }
   });
+  
+  $('.shots a').each(function(i) {
+    $.preLoadImages($(this).attr('href'));
+    if (location.hash) {
+      if ('#' + (i + 1) == location.hash) {
+        $(this).trigger('click');
+      }
+    }
+  });
+  
 });
 </script>
 {% end %}
