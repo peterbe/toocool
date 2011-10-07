@@ -8,6 +8,7 @@ from tornado.web import HTTPError
 from tornado_utils.routes import route
 from tornado.escape import json_decode, json_encode
 from pymongo.objectid import InvalidId, ObjectId
+import utils
 #import settings
 
 from models import User
@@ -146,11 +147,24 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
                                     access_token=access_token)
             self._on_show(result, this_username, username, results)
         elif usernames:
+            if len(usernames) > 100:
+                raise HTTPError(400, "Too many usernames to look up (max 100)")
             # See https://dev.twitter.com/docs/api/1/get/friendships/lookup
-            result = yield tornado.gen.Task(self.twitter_request,
-                                    "/friendships/lookup",
-                                    screen_name=','.join(usernames),
-                                    access_token=access_token)
+            result = None
+            attempts = 0
+            while result is None:
+                result = yield tornado.gen.Task(self.twitter_request,
+                                        "/friendships/lookup",
+                                        screen_name=','.join(usernames),
+                                        access_token=access_token)
+                if result is not None:
+                    break
+                else:
+                    attempts += 1
+                    from time import sleep
+                    sleep(1)
+                    if attempts > 2:
+                        raise HTTPError(500, "Unable to look up friendships")
             self._on_lookup(result, this_username, results)
         else:
             # all usernames were lookup'able by cache
@@ -167,7 +181,7 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
             else:
                 data[each['screen_name']] = False
             key = 'follows:%s:%s' % (this_username, each['screen_name'])
-            self.redis.setex(key, int(data[each['screen_name']]), 60)
+            self.redis.setex(key, int(data[each['screen_name']]), 60 * 5)
 
         if self.jsonp:
             self.write_jsonp(self.jsonp, data)
@@ -383,3 +397,74 @@ class ScreenshotsHandler(BaseHandler):  # pragma: no cover  (under development)
         options = {}
         options['page_title'] = "Screenshots"
         self.render('screenshots.html', **options)
+
+@route('/everyone', name='everyone')
+class EveryoneIFollowHandler(BaseHandler, tornado.auth.TwitterMixin):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self):
+
+        current_user = self.get_current_user()
+        if not current_user:
+            self.redirect(self.reverse_url('auth_twitter'))
+            return
+
+        this_username = current_user['username']
+        access_token = current_user['access_token']
+        key = 'friends:%s' % this_username
+        result = self.redis.get(key)
+        if result is None:
+            result = yield tornado.gen.Task(self.twitter_request,
+              "/friends/ids",
+              screen_name=this_username,
+              access_token=access_token
+            )
+            self.redis.setex(key, json_encode(result), 60 * 60)
+        else:
+            result = json_decode(result)
+        # now turn these IDs into real screen names
+        unknown = []
+        screen_names = []
+        for id_ in result:
+            user = self.db.User.find_one({'user_id': id_})
+            if user:
+                screen_names.append(user['username'])
+            else:
+                key = 'screen_name:%s' % id_
+                screen_name = self.redis.get(key)
+                if screen_name is None:
+                    unknown.append(id_)
+                else:
+                    screen_names.append(screen_name)
+
+        buckets = utils.bucketize(unknown, 100)
+
+        for bucket in buckets:
+            users = None
+            attempts = 0
+            while True:
+                users = yield tornado.gen.Task(self.twitter_request,
+                  "/users/lookup",
+                  user_id=','.join(str(x) for x in bucket)
+                )
+                if users is not None:
+                    break
+                else:
+                    from time import sleep
+                    sleep(1)
+                    attempts += 1
+                    if attempts > 3:
+                        raise HTTPError(500, "Unable to connect to twitter")
+            for user in users:
+                username = user['screen_name']
+                key = 'screen_name:%s' % user['id']
+                self.redis.setex(key, username, 7 * 24 * 60 * 60)
+                screen_names.append(username)
+
+        assert len(result) == len(screen_names)
+
+        options = {}
+        options['screen_names'] = screen_names
+        options['page_title'] = "Everyone I follow"
+        self.render('everyone.html', **options)

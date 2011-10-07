@@ -5,10 +5,13 @@ connection = Connection()
 @connection.register
 class User(Document):
     __collection__ = 'users'
-    structure = {
+    skeleton = {
       'username': unicode,
       'access_token': dict,
       'modify_date': datetime.datetime
+    }
+    optional = {
+      'user_id': int,
     }
 
     default_values = {'modify_date':datetime.datetime.utcnow}
