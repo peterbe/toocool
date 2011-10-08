@@ -24,16 +24,16 @@ li a.thumbnail { float:left; padding:3px; margin:0 5px 0 0; }
 
 {% block content %}
 
-<h2>{{ page_title }}</h2>
+<h2>{{ page_title }} <span class="total"></span></h2>
 
 <div id="split">
   <div id="followsyounot">
-    <h3 class="followsyounot">Too cool for me</h3>
+    <h3 class="followsyounot">Too cool for me <span class="total"></span></h3>
     <ul>
     </ul>
   </div>
   <div id="followsyou">
-    <h3 class="followsyou">Follows me!</h3>
+    <h3 class="followsyou">Follows me! <span class="total"></span></h3>
     <ul>
     </ul>
   </div>
@@ -73,6 +73,11 @@ function lookup(usernames) {
           c = $('#followsyounot ul');
         $('#user__' + x).detach().appendTo(c);
       });
+      var t0 = $('#followsyounot li').size(),
+          t1 = $('#followsyou li').size();
+      $('#followsyounot .total').text('(' + t0 + ')');
+      $('#followsyou .total').text('(' + t1 + ')');
+      $('h2 .total').text('(' + t1 + '+' + t0 + '=' + (t1 + t0) + ')');
   });
 }
 
