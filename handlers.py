@@ -410,6 +410,77 @@ class EveryoneIFollowHandler(BaseHandler, tornado.auth.TwitterMixin):
             self.redirect(self.reverse_url('auth_twitter'))
             return
 
+#        this_username = current_user['username']
+#        access_token = current_user['access_token']
+#        key = 'friends:%s' % this_username
+#        result = self.redis.get(key)
+#        if result is None:
+#            result = yield tornado.gen.Task(self.twitter_request,
+#              "/friends/ids",
+#              screen_name=this_username,
+#              access_token=access_token
+#            )
+#            self.redis.setex(key, json_encode(result), 60 * 60)
+#        else:
+#            result = json_decode(result)
+#        # now turn these IDs into real screen names
+#        unknown = []
+#        screen_names = []
+#        for id_ in result:
+#            user = self.db.User.find_one({'user_id': id_})
+#            if user:
+#                screen_names.append(user['username'])
+#            else:
+#                key = 'screen_name:%s' % id_
+#                screen_name = self.redis.get(key)
+#                if screen_name is None:
+#                    unknown.append(id_)
+#                else:
+#                    screen_names.append(screen_name)
+#
+#        buckets = utils.bucketize(unknown, 100)
+#
+#        for bucket in buckets:
+#            users = None
+#            attempts = 0
+#            while True:
+#                users = yield tornado.gen.Task(self.twitter_request,
+#                  "/users/lookup",
+#                  user_id=','.join(str(x) for x in bucket)
+#                )
+#                if users is not None:
+#                    break
+#                else:
+#                    from time import sleep
+#                    sleep(1)
+#                    attempts += 1
+#                    if attempts > 3:
+#                        raise HTTPError(500, "Unable to connect to twitter")
+#            for user in users:
+#                username = user['screen_name']
+#                key = 'screen_name:%s' % user['id']
+#                self.redis.setex(key, username, 7 * 24 * 60 * 60)
+#                screen_names.append(username)
+#
+#        assert len(result) == len(screen_names)
+#
+#        screen_names.sort()
+        options = {}
+#        options['screen_names'] = screen_names
+        options['page_title'] = "Everyone I follow"
+        self.render('everyone.html', **options)
+
+@route('/everyone.json', name='everyone_json')
+class EveryoneIFollowJSONHandler(BaseHandler, tornado.auth.TwitterMixin):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self):
+
+        current_user = self.get_current_user()
+        if not current_user:
+            raise HTTPError(403, "Not logged in")
+
         this_username = current_user['username']
         access_token = current_user['access_token']
         key = 'friends:%s' % this_username
@@ -465,7 +536,5 @@ class EveryoneIFollowHandler(BaseHandler, tornado.auth.TwitterMixin):
         assert len(result) == len(screen_names)
 
         screen_names.sort()
-        options = {}
-        options['screen_names'] = screen_names
-        options['page_title'] = "Everyone I follow"
-        self.render('everyone.html', **options)
+        self.write_json(screen_names)
+        self.finish()

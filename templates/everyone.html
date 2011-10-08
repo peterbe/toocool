@@ -41,8 +41,11 @@ li a.thumbnail { float:left; padding:3px; margin:0 5px 0 0; }
 
 <div class="clearer">&nbsp;</div>
 
+<p id="pleasewait">Please wait whilst we figure out every one you follow...</p>
+
 <ul id="users" style="display:none">
-{% for username in screen_names %}
+
+{% if 0%}{% for username in screen_names %}
 <li id="user__{{ username }}">
 <a href="https://twitter.com/#!{{ username }}" class="thumbnail"
 ><img width="48" height="48"
@@ -51,8 +54,10 @@ li a.thumbnail { float:left; padding:3px; margin:0 5px 0 0; }
 >{{ username }}</a><br>
 <a href="/following/{{ username }}" class="compare">compare</a>
 </li>
-{% end %}
+{% end %}{%end%}
+
 </ul>
+
 
 {% end %}
 
@@ -81,11 +86,9 @@ function lookup(usernames) {
   });
 }
 
-var MAX = 100;
-$(function() {
+function post_load_usernames(all_usernames) {
   var buckets = [], username, usernames = [];
-  $('#users li').each(function() {
-    username = $(this).attr('id').replace('user__', '');
+  $.each(all_usernames, function(i, username) {
     usernames.push(username);
     if (usernames.length == MAX) {
       buckets.push(usernames);
@@ -96,6 +99,42 @@ $(function() {
   for (var i in buckets) {
     lookup(buckets[i]);
   }
+}
+
+var MAX = 100;
+$(function() {
+
+  $.getJSON('/everyone.json', function (response) {
+      if (response.ERROR) {
+        alert('ERROR: ' + response.ERROR);
+        return;
+      }
+      var li, p = $('#users');
+      $.each(response, function(i, username) {
+        li = $('<li>').attr('id', 'user__' + username);
+        li.append($('<a>')
+                   .attr('href', 'http://twitter.com/#!' + username)
+                   .addClass('thumbnail')
+                   .append($('<img>')
+                            .attr('width', '48')
+                            .attr('height', '48')
+                            .attr('src', 'http://api.twitter.com/1/users/profile_image/' + username + '.png')));
+        li.append($('<a>')
+                   .attr('href', 'http://twitter.com/#!' + username)
+                   .addClass('profile')
+                   .text(username));
+        li.append($('<br>'));
+        li.append($('<a>')
+                   .attr('href', '/following/' + username)
+                   .addClass('compare')
+                   .text('compare'));
+
+        li.appendTo(p);
+      });
+      post_load_usernames(response);
+      $('#pleasewait').remove();
+   });
+
 });
 
 </script>
