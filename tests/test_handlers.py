@@ -40,6 +40,9 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertTrue('Login with Twitter' in response.body)
 
+        self.assertEqual(int(self.redis.get('auths:total')), 1)
+        self.assertEqual(int(self.redis.get('auths:username:peterbe')), 1)
+
     def test_twitter_login_twitter_failing(self):
         TwitterAuthHandler.get_authenticated_user = \
           make_twitter_get_authenticated_user_callback(None)
@@ -98,6 +101,7 @@ class HandlersTestCase(BaseHTTPTestCase):
 
 
     def test_json(self):
+        self.assertEqual(self.redis.get('lookups:json'), None)
         FollowsHandler.twitter_request = \
           make_mock_twitter_request({u'relationship': {
                    u'target': {u'followed_by': False,
@@ -131,6 +135,10 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertEqual(response.code, 200)
         struct = json.loads(response.body)
         self.assertEqual(struct['obama'], False)
+
+        self.assertEqual(int(self.redis.get('lookups:json')), 2)
+        self.assertEqual(int(self.redis.get('lookups:username:peterbe')), 2)
+        self.assertEqual(int(self.redis.get('lookups:usernames')), 2)
 
     def test_json_with_overriding_you(self):
         FollowsHandler.twitter_request = \
@@ -192,6 +200,11 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertEqual(response.body, 'FOO({"obama": false})')
 
+        self.assertEqual(int(self.redis.get('lookups:json')), 0)
+        self.assertEqual(int(self.redis.get('lookups:jsonp')), 2)
+        self.assertEqual(int(self.redis.get('lookups:username:peterbe')), 2)
+        self.assertEqual(int(self.redis.get('lookups:usernames')), 2)
+
     def test_jsonp(self):
         url = self.reverse_url('jsonp')
         response = self.client.get(url, {'username': 'obama'})
@@ -200,7 +213,6 @@ class HandlersTestCase(BaseHTTPTestCase):
         response = self.client.get(url, {'username': 'obama', 'callback': 'FOO'})
         self.assertEqual(response.code, 200)
         self.assertTrue(response.body.startswith('FOO({"ERROR":'))
-
 
     def test_following_none_cached(self):
         FollowsHandler.twitter_request = \

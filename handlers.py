@@ -64,6 +64,21 @@ class HomeHandler(BaseHandler):
 @route('/jsonp', name='jsonp')
 class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
 
+    def increment_lookup_count(self, username, usernames, jsonp=False):
+        if jsonp:
+            key = 'lookups:jsonp'
+        else:
+            key = 'lookups:json'
+        if not isinstance(usernames, int):
+            usernames = len(usernames)
+        self.redis.incr(key)
+
+        key = 'lookups:username:%s' % username
+        self.redis.incr(key)
+
+        key = 'lookups:usernames'
+        self.redis.incr(key, usernames)
+
     @tornado.web.asynchronous
     @tornado.gen.engine
     def get(self):
@@ -123,6 +138,8 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
             self.finish()
             return
 
+        self.increment_lookup_count(this_username, len(usernames), jsonp=jsonp)
+
         results = {}
         # pick some up already from the cache
         _drop = set()
@@ -130,8 +147,6 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
             key = 'follows:%s:%s' % (this_username, username)
             value = self.redis.get(key)
             if value is not None:
-                #print repr(username)
-                #print "\t", repr(value)
                 results[username] = bool(int(value))
                 _drop.add(username)
         usernames -= _drop
@@ -213,6 +228,12 @@ class BaseAuthHandler(BaseHandler):
 @route('/auth/twitter/', name='auth_twitter')
 class TwitterAuthHandler(BaseAuthHandler, tornado.auth.TwitterMixin):
 
+    def increment_authentication_count(self, username):
+        key = 'auths:username:%s' % username
+        self.redis.incr(key)
+        key = 'auths:total'
+        self.redis.incr(key)
+
     @tornado.web.asynchronous
     def get(self):
         if self.get_argument("oauth_token", None):
@@ -235,6 +256,8 @@ class TwitterAuthHandler(BaseAuthHandler, tornado.auth.TwitterMixin):
             user['username'] = username
             user['access_token'] = access_token
             user.save()
+
+        self.increment_authentication_count(username)
 
         self.set_secure_cookie("user",
                                str(user['_id']),
@@ -401,72 +424,14 @@ class ScreenshotsHandler(BaseHandler):  # pragma: no cover  (under development)
 @route('/everyone', name='everyone')
 class EveryoneIFollowHandler(BaseHandler, tornado.auth.TwitterMixin):
 
-    @tornado.web.asynchronous
-    @tornado.gen.engine
+    #@tornado.web.asynchronous
+    #@tornado.gen.engine
     def get(self):
-
         current_user = self.get_current_user()
         if not current_user:
             self.redirect(self.reverse_url('auth_twitter'))
             return
-
-#        this_username = current_user['username']
-#        access_token = current_user['access_token']
-#        key = 'friends:%s' % this_username
-#        result = self.redis.get(key)
-#        if result is None:
-#            result = yield tornado.gen.Task(self.twitter_request,
-#              "/friends/ids",
-#              screen_name=this_username,
-#              access_token=access_token
-#            )
-#            self.redis.setex(key, json_encode(result), 60 * 60)
-#        else:
-#            result = json_decode(result)
-#        # now turn these IDs into real screen names
-#        unknown = []
-#        screen_names = []
-#        for id_ in result:
-#            user = self.db.User.find_one({'user_id': id_})
-#            if user:
-#                screen_names.append(user['username'])
-#            else:
-#                key = 'screen_name:%s' % id_
-#                screen_name = self.redis.get(key)
-#                if screen_name is None:
-#                    unknown.append(id_)
-#                else:
-#                    screen_names.append(screen_name)
-#
-#        buckets = utils.bucketize(unknown, 100)
-#
-#        for bucket in buckets:
-#            users = None
-#            attempts = 0
-#            while True:
-#                users = yield tornado.gen.Task(self.twitter_request,
-#                  "/users/lookup",
-#                  user_id=','.join(str(x) for x in bucket)
-#                )
-#                if users is not None:
-#                    break
-#                else:
-#                    from time import sleep
-#                    sleep(1)
-#                    attempts += 1
-#                    if attempts > 3:
-#                        raise HTTPError(500, "Unable to connect to twitter")
-#            for user in users:
-#                username = user['screen_name']
-#                key = 'screen_name:%s' % user['id']
-#                self.redis.setex(key, username, 7 * 24 * 60 * 60)
-#                screen_names.append(username)
-#
-#        assert len(result) == len(screen_names)
-#
-#        screen_names.sort()
         options = {}
-#        options['screen_names'] = screen_names
         options['page_title'] = "Everyone I follow"
         self.render('everyone.html', **options)
 
@@ -538,3 +503,32 @@ class EveryoneIFollowJSONHandler(BaseHandler, tornado.auth.TwitterMixin):
         screen_names.sort()
         self.write_json(screen_names)
         self.finish()
+
+
+@route('/lookups', name='lookups')
+class LookupsHandler(BaseHandler):
+
+    def get_lookups(self, username=None):
+        data = {}
+        data['lookups_json'] = self.redis.get('lookups:json') or 0
+        data['lookups_jsonp'] = self.redis.get('lookups:jsonp') or 0
+        data['auths'] = self.redis.get('auths:total') or 0
+        data['lookups_usernames'] = self.redis.get('lookups:usernames') or 0
+        if username:
+            print "NotImplmented"
+        for key, value in data.items():
+            data[key] = int(value)
+        return data
+
+    def get(self):
+        options = {}
+        options['page_title'] = "Lookups"
+        options.update(self.get_lookups())
+        self.render('lookups.html', **options)
+
+@route('/lookups.json', name='lookups_json')
+class LookupsJSONHandler(LookupsHandler):
+
+    def get(self):
+        data = self.get_lookups()
+        self.write_json(data)

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+th, td { background-color:#efefef; padding:12px 27px; }
+th { text-align:left; }
+td { font-size:2.5em; font-weight:bold; }
+</style>
+{% end %}
+
+
+{% block content %}
+<h1>Lookups</h1>
+
+<p>In other words, is this app being actively used?</p>
+
+<table>
+  <tr>
+    <th>Total number of usernames looked up:</th>
+    <td id="lookups-usernames">{{ lookups_usernames }}</td>
+  </tr>
+  <tr>
+    <th>Twitter requests total:</th>
+    <td id="lookups-total">{{ lookups_json + lookups_jsonp }}</td>
+  </tr>
+  <tr>
+    <th>Twitter requests by JSON:</th>
+    <td id="lookups-json">{{ lookups_json }}</td>
+  </tr>
+  <tr>
+    <th>Twitter requests by JSONP:</th>
+    <td id="lookups-jsonp">{{ lookups_jsonp }}</td>
+  </tr>
+  <tr>
+    <th>Authentications:</th>
+    <td id="auths">{{ auths }}</td>
+  </tr>
+</table>
+{% end %}
+
+{% block extra_js %}
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
+<script>
+var JSON_URL = '{{ reverse_url('lookups_json') }}';
+</script>
+<script src="{{ static_url('js/lookups.js') }}"></script>
+{% end %}

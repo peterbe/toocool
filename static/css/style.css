@@ -116,3 +116,6 @@ img.screengrab1 {float:left; margin-top: 20px; opacity:0.7;}
 img.screengrab {float: left; margin-right: 10px;}
 h3.confused {font-size:35px;}
 span.grey {color:#c1c1c1;}
+
+header h1 { }
+header p#home-link { font-size:0.8em; margin-top:0; }
