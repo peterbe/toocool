@@ -1,3 +1,7 @@
+function L() {
+   if (window.console && window.console.log)
+     console.log.apply(console, arguments);
+}
 
 function compareAssociativeArrays(a, b) {
     function nrKeys(a) {
@@ -23,13 +27,24 @@ function compareAssociativeArrays(a, b) {
 
 
 var previous = {}, incr = 0;  // global
+
 function update() {
+  function incr_number(key, num) {
+    var before = $(key).text();
+    if (before !== '' + num) {
+      // there's a change!
+      $(key).fadeTo(200, 0., function() {
+        $(this).text(num).fadeTo(300, 1.0);
+      });
+    }
+  }
+
   $.getJSON(JSON_URL, function(response) {
-    $('#lookups-total').text(response.lookups_json + response.lookups_jsonp);
-    $('#lookups-json').text(response.lookups_json);
-    $('#lookups-jsonp').text(response.lookups_jsonp);
-    $('#lookups-usernames').text(response.lookups_usernames);
-    $('#auths').text(response.auths);
+    incr_number('#lookups-total', response.lookups_json + response.lookups_jsonp);
+    incr_number('#lookups-json', response.lookups_json);
+    incr_number('#lookups-jsonp', response.lookups_jsonp);
+    incr_number('#lookups-usernames', response.lookups_usernames);
+    incr_number('#auths', response.auths);
     var change = !compareAssociativeArrays(response, previous);
     previous = response;
 
@@ -41,7 +56,6 @@ function update() {
       t = Math.min(3 + incr, 10);
       incr += 0.1;
     }
-    console.log(Math.ceil(t*1000));
     setTimeout(update, Math.ceil(t * 1000));
   });
 }
