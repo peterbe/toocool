@@ -1,3 +1,4 @@
+import os
 import json
 from urllib import urlencode
 from .base import BaseHTTPTestCase
@@ -442,6 +443,30 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertTrue('%.1f' % (417.0/330) in response.body)
         self.assertTrue('%.1f' % (41700.0/1) in response.body)
 
+    def test_screenshots(self):
+        from handlers import ScreenshotsHandler
+        url = self.reverse_url('screenshots')
+        response = self.client.get(url)
+        self.assertEqual(response.code, 200)
+        static_base_path = os.path.join(
+          self.get_app().settings['static_path'],
+          'images',
+          'screenshots',
+        )
+        for filename, title in ScreenshotsHandler.IMAGES:
+            filepath = os.path.join(static_base_path, filename)
+            self.assertTrue(os.path.isfile(filepath))
+            filepath_small = filepath.replace('.png', '_small.png')
+            self.assertTrue(os.path.isfile(filepath_small))
+
+            self.assertTrue(filepath.replace(static_base_path, '')
+                            in response.body)
+
+            self.assertTrue(filepath_small.replace(static_base_path, '')
+                            in response.body)
+
+            self.assertTrue('alt="%s"' % title in response.body)
+            self.assertTrue('title="%s"' % title in response.body)
 
 def make_twitter_get_authenticated_user_callback(struct):
     def twitter_get_authenticated_user(self, callback, **kw):

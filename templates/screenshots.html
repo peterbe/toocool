@@ -11,20 +11,11 @@
 {% block content %}
 
 <p class="shots">
-<a href="{{ static_url('images/screenshots/bookmarklet-in-toolbar.png') }}" title="Bookmarklet in toolbar"
-><img src="{{ static_url('images/screenshots/bookmarklet-in-toolbar_small.png') }}" alt="Bookmarklet in toolbar"></a>
 
-<a href="{{ static_url('images/screenshots/on-twitter.png') }}" title="On Twitter"
-><img src="{{ static_url('images/screenshots/on-twitter_small.png') }}" alt="On Twitter"></a>
-
-<a href="{{ static_url('images/screenshots/follows-me.png') }}" title="Someone who follows me"
-><img src="{{ static_url('images/screenshots/follows-me_small.png') }}" alt="Someone who follows me"></a>
-
-<a href="{{ static_url('images/screenshots/too-cool.png') }}" title="Someone who is too cool for me"
-><img src="{{ static_url('images/screenshots/too-cool_small.png') }}" alt="Someone who is too cool for me"></a>
-
-<a href="{{ static_url('images/screenshots/everyone.png') }}" title="Complete list of all people you follow and if they follow you"
-><img src="{{ static_url('images/screenshots/everyone_small.png') }}" alt="Complete list of all people you follow and if they follow you"></a>
+{% for file_path, file_path_small, title in images %}
+<a href="{{ static_url(file_path) }}" title="{{ title }}"
+><img src="{{ static_url(file_path_small) }}" alt="{{ title }}"></a>
+{% end %}
 
 </p>
 
@@ -66,7 +57,7 @@ $(function() {
       });
     }
   });
-  
+
   $('.shots a').each(function(i) {
     $.preLoadImages($(this).attr('href'));
     if (location.hash) {
@@ -75,7 +66,7 @@ $(function() {
       }
     }
   });
-  
+
 });
 </script>
 {% end %}

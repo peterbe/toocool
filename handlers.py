@@ -1,3 +1,4 @@
+import os
 import logging
 from pprint import pprint, pformat
 import tornado.auth
@@ -415,10 +416,40 @@ class CoolestHandler(BaseHandler):  # pragma: no cover  (under development)
 
 @route(r'/screenshots', name='screenshots')
 class ScreenshotsHandler(BaseHandler):  # pragma: no cover  (under development)
+    IMAGES = (
+      ('bookmarklet-in-toolbar.png',
+       u"Bookmarklet in toolbar"),
+      ('on-twitter.png',
+       u"On Twitter"),
+      ('follows-me.png',
+       u"Someone who follows me"),
+      ('too-cool.png',
+       u"Someone who is too cool for me"),
+      ('everyone.png',
+       u"Complete list of all people you follow and if they follow you"),
+      ('lookups.png',
+       u"On /lookups you can see all Twitter traffic in near-real-time"),
+    )
 
     def get(self):
         options = {}
         options['page_title'] = "Screenshots"
+        images = []
+        static_base_path = os.path.join(
+          self.application.settings['static_path'],
+          'images',
+          'screenshots',
+        )
+        for filename, title in self.IMAGES:
+            file_path = os.path.join('images', 'screenshots', filename)
+            file_path_small = file_path.replace('.png', '_small.png')
+            images.append((
+              file_path,
+              file_path_small,
+              title
+            ))
+
+        options['images'] = images
         self.render('screenshots.html', **options)
 
 @route('/everyone', name='everyone')
