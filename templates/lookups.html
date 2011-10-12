@@ -5,6 +5,7 @@
 th, td { background-color:#efefef; padding:12px 27px; }
 th { text-align:left; }
 td { font-size:2.5em; font-weight:bold; }
+#charts div { float:left; }
 </style>
 {% end %}
 
@@ -13,6 +14,7 @@ td { font-size:2.5em; font-weight:bold; }
 <h1>Lookups</h1>
 
 <p>In other words, is this app being actively used?</p>
+
 
 <table>
   <tr>
@@ -36,6 +38,13 @@ td { font-size:2.5em; font-weight:bold; }
     <td><span id="auths">{{ auths }}</span></td>
   </tr>
 </table>
+<div id="charts">
+<div id="chart-jsons"></div>
+<div id="chart-jsonps"></div>
+<div id="chart-usernames"></div>
+<div id="chart-auths"></div>
+</div>
+<div class="clearer">&nbsp;</div>
 {% end %}
 
 {% block extra_js %}
@@ -43,5 +52,10 @@ td { font-size:2.5em; font-weight:bold; }
 <script>
 var JSON_URL = '{{ reverse_url('lookups_json') }}';
 </script>
+<script src="{{ static_url('js/chart.js') }}"></script>
 <script src="{{ static_url('js/lookups.js') }}"></script>
+<script type="text/javascript" src="https://www.google.com/jsapi"></script>
+<script>
+google.load("visualization", "1", {packages:["corechart"]});
+</script>
 {% end %}
