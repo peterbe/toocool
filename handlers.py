@@ -1,18 +1,18 @@
+import re
+import datetime
 import os
 import logging
 from pprint import pprint, pformat
 import tornado.auth
 import tornado.web
 import tornado.gen
-#from tornado import gen
 from tornado.web import HTTPError
 from tornado_utils.routes import route
 from tornado.escape import json_decode, json_encode
 from pymongo.objectid import InvalidId, ObjectId
 import utils
-#import settings
 
-from models import User
+from models import User, Tweeter
 
 
 class BaseHandler(tornado.web.RequestHandler):
@@ -40,6 +40,53 @@ class BaseHandler(tornado.web.RequestHandler):
     @property
     def db(self):
         return self.application.db
+
+    def save_tweeter_user(self, user):
+        user_id = user['id']
+        tweeter = self.db.Tweeter.find_one({'user_id': user_id})
+        _save = False
+        if not tweeter:
+            tweeter = self.db.Tweeter()
+            tweeter['user_id'] = user_id
+            _save = True
+
+        if tweeter['name'] != user['name']:
+            tweeter['name'] = user['name']
+            _save = True
+
+        if tweeter['username'] != user['screen_name']:
+            tweeter['username'] = user['screen_name']
+            _save = True
+
+        if tweeter['followers'] != user['followers_count']:
+            tweeter['followers'] = user['followers_count']
+            _save = True
+
+        if tweeter['following'] != user['friends_count']:
+            tweeter['following'] = user['friends_count']
+            _save = True
+
+        def parse_status_date(dstr):
+            dstr = re.sub('\+\d{1,4}', '', dstr)
+            return datetime.datetime.strptime(
+              dstr,
+              '%a %b %d %H:%M:%S %Y'
+            )
+        last_tweet_date = None
+        if 'status' in user:
+            last_tweet_date = user['status']['created_at']
+            last_tweet_date = parse_status_date(last_tweet_date)
+            if tweeter['last_tweet_date'] != last_tweet_date:
+                tweeter['last_tweet_date'] = last_tweet_date
+                _save = True
+
+        ratio_before = tweeter['ratio']
+        ratio = tweeter.set_ratio()
+        if ratio != ratio_before:
+            _save = True
+
+        if _save:
+            tweeter.save()
 
 
 @route('/')
@@ -75,6 +122,7 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
         self.redis.incr(key)
 
         key = 'lookups:username:%s' % username
+        assert username
         self.redis.incr(key)
 
         key = 'lookups:usernames'
@@ -248,7 +296,9 @@ class TwitterAuthHandler(BaseAuthHandler, tornado.auth.TwitterMixin):
             options['page_title'] = "Twitter authentication failed"
             self.render('twitter_auth_failed.html', **options)
             return
-        username = user_struct.get('username')
+
+        username = user_struct.get('username',
+              user_struct.get('screen_name'))
         access_token = user_struct['access_token']
         assert access_token
         user = self.db.User.find_one({'username': username})
@@ -263,6 +313,8 @@ class TwitterAuthHandler(BaseAuthHandler, tornado.auth.TwitterMixin):
         self.set_secure_cookie("user",
                                str(user['_id']),
                                expires_days=30, path='/')
+
+        self.save_tweeter_user(user_struct)
         self.redirect('/')
 
 
@@ -349,6 +401,8 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
                                             "/users/show",
                                             screen_name=username,
                                             access_token=access_token)
+            if result:
+                self.save_tweeter_user(result)
         else:
             result = json_decode(value)
             key = None
@@ -455,8 +509,6 @@ class ScreenshotsHandler(BaseHandler):  # pragma: no cover  (under development)
 @route('/everyone', name='everyone')
 class EveryoneIFollowHandler(BaseHandler, tornado.auth.TwitterMixin):
 
-    #@tornado.web.asynchronous
-    #@tornado.gen.engine
     def get(self):
         current_user = self.get_current_user()
         if not current_user:
@@ -526,6 +578,7 @@ class EveryoneIFollowJSONHandler(BaseHandler, tornado.auth.TwitterMixin):
             for user in users:
                 username = user['screen_name']
                 key = 'screen_name:%s' % user['id']
+                self.save_tweeter_user(user)
                 self.redis.setex(key, username, 7 * 24 * 60 * 60)
                 screen_names.append(username)
 
@@ -534,6 +587,7 @@ class EveryoneIFollowJSONHandler(BaseHandler, tornado.auth.TwitterMixin):
         screen_names.sort()
         self.write_json(screen_names)
         self.finish()
+
 
 
 @route('/lookups', name='lookups')

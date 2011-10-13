@@ -1,8 +1,10 @@
+import datetime
 import os
 import json
 from urllib import urlencode
 from .base import BaseHTTPTestCase
-from handlers import TwitterAuthHandler, FollowsHandler, FollowingHandler
+from handlers import (TwitterAuthHandler, FollowsHandler, FollowingHandler,
+                      EveryoneIFollowJSONHandler)
 
 class HandlersTestCase(BaseHTTPTestCase):
 
@@ -59,12 +61,16 @@ class HandlersTestCase(BaseHTTPTestCase):
 
     def _login(self, username=u'peterbe', name=u'Peter Bengtsson',
                      email=None):
+        assert username
         struct = {
           'name': name,
-          'username': username,
+          'screen_name': username,
           'email': email,
           'access_token': {'key': '0123456789',
-                           'secret': 'xxx'}
+                           'secret': 'xxx'},
+          'id': 9876543210,
+          'followers_count': 333,
+          'friends_count': 222,
         }
         TwitterAuthHandler.get_authenticated_user = \
           make_twitter_get_authenticated_user_callback(struct)
@@ -282,6 +288,7 @@ class HandlersTestCase(BaseHTTPTestCase):
                             u'friends_count': 1300,
                             u'name': u'Barak',
                             u'screen_name': u'obama',
+                            'id': 9876543210,
                             },
             "/users/show?screen_name=peterbe": {
                             u'followers_count': 417,
@@ -289,6 +296,7 @@ class HandlersTestCase(BaseHTTPTestCase):
                             u'friends_count': 330,
                             u'name': u'Peter Bengtsson',
                             u'screen_name': u'peterbe',
+                            'id': 123456789,
                             }
             })
 
@@ -311,6 +319,7 @@ class HandlersTestCase(BaseHTTPTestCase):
                             u'friends_count': 1301,
                             u'name': u'Barak',
                             u'screen_name': u'obama',
+                            'id': 9876543210,
                             },
             "/users/show?screen_name=peterbe": {
                             u'followers_count': 417,
@@ -318,6 +327,7 @@ class HandlersTestCase(BaseHTTPTestCase):
                             u'friends_count': 331,
                             u'name': u'Peter Bengtsson',
                             u'screen_name': u'peterbe',
+                            'id': 123456789,
                             }
             })
 
@@ -339,6 +349,7 @@ class HandlersTestCase(BaseHTTPTestCase):
                             u'friends_count': 1000,
                             u'name': u'West',
                             u'screen_name': u'chris',
+                            'id': 112233445566,
                             },
             })
         response = self.client.get(url)
@@ -366,6 +377,7 @@ class HandlersTestCase(BaseHTTPTestCase):
                             u'friends_count': 1300,
                             u'name': u'Barak',
                             u'screen_name': u'obama',
+                            u'id': 1233456365
                             },
             "/users/show?screen_name=peterbe": None
             })
@@ -427,6 +439,7 @@ class HandlersTestCase(BaseHTTPTestCase):
                             u'friends_count': 0,
                             u'name': u'Barak',
                             u'screen_name': u'obama',
+                            'id': 987654321,
                             },
             "/users/show?screen_name=peterbe": {
                             u'followers_count': 417,
@@ -434,6 +447,7 @@ class HandlersTestCase(BaseHTTPTestCase):
                             u'friends_count': 330,
                             u'name': u'Peter Bengtsson',
                             u'screen_name': u'peterbe',
+                            'id': 123456789
                             }
             })
 
@@ -468,6 +482,66 @@ class HandlersTestCase(BaseHTTPTestCase):
             self.assertTrue('alt="%s"' % title in response.body)
             self.assertTrue('title="%s"' % title in response.body)
 
+    def test_everyone_json(self):
+        url = self.reverse_url('everyone_json')
+        response = self.client.get(url)
+        self.assertEqual(response.code, 403)
+        self._login()
+
+        EveryoneIFollowJSONHandler.twitter_request = \
+          make_mock_twitter_request({
+            "/friends/ids": [123456789, 987654321],
+            "/users/lookup": [
+              {'id': 987654321,
+               'followers_count': 41700,
+               'following': False,
+               'friends_count': 0,
+               'name': u'Barak',
+               'screen_name': u'obama',
+               'status': {
+                 'created_at': u'Wed Oct 12 20:12:27 +0000 2011',
+                 }
+               },
+              {'id': 123456789,
+               u'followers_count': 417,
+               u'following': False,
+               u'friends_count': 330,
+               u'name': u'Peter Bengtsson',
+               u'screen_name': u'peter',
+               'created_at': u'Thu Jan 04 17:13:11 +0000 2007',
+               }
+            ]
+        })
+
+        response = self.client.get(url)
+        struct = json.loads(response.body)
+        self.assertEqual(struct, ['obama', 'peter'])
+
+        # this should have created some Tweeters
+        self.assertEqual(self.db.Tweeter
+                         .find({'username': {'$ne':'peterbe'}})
+                         .count(), 2)
+        obama = self.db.Tweeter.find_one({'username': 'obama'})
+        self.assertEqual(obama['user_id'], 987654321)
+        self.assertEqual(obama['ratio'], 41700.0)
+        self.assertEqual(obama['following'], 0)
+        self.assertEqual(obama['followers'], 41700)
+        self.assertEqual(obama['name'], 'Barak')
+        fmt = '%Y-%m-%d-%H-%M-%S'
+        self.assertEqual(
+          obama['last_tweet_date'].strftime(fmt),
+          datetime.datetime(2011, 10, 12, 20, 12, 27).strftime(fmt)
+        )
+
+        peter = self.db.Tweeter.find_one({'username': 'peter'})
+        self.assertEqual(peter['user_id'], 123456789)
+        self.assertEqual(peter['ratio'], 417.0/330)
+        self.assertEqual(peter['following'], 330)
+        self.assertEqual(peter['followers'], 417)
+        self.assertEqual(peter['name'], 'Peter Bengtsson')
+        self.assertEqual(peter['last_tweet_date'], None)
+
+
 def make_twitter_get_authenticated_user_callback(struct):
     def twitter_get_authenticated_user(self, callback, **kw):
         callback(struct)
@@ -478,7 +552,11 @@ def twitter_get_authenticated_user(self, callback, **kw):
       'name': u'Peter Bengtsson',
       'username': u'peterbe',
       'email': None,
-      'access_token': {'key': '0123456789', 'secret': 'xxx'}
+      'access_token': {'key': '0123456789', 'secret': 'xxx'},
+      'id': 123456789,
+      'screen_name': u'peterbe',
+      'followers_count': 300,
+      'friends_count': 255,
     })
 
 def twitter_authenticate_redirect(self):
@@ -551,7 +629,8 @@ def make_mock_twitter_request(result, path=None):
               u'screen_name': u'fox2mike'}]
 
         """
-        kw.pop('access_token')
+        if 'access_token' in kw:
+            kw.pop('access_token')
         long_path = path + '?' + urlencode(kw)
         if isinstance(result, dict):
             send_back = result.get(long_path, result.get(path, result))

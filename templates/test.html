@@ -8,6 +8,7 @@ Also include some user names you know follow you:</p>
 <div style="float:left">
 <textarea name="usernames" cols="20" rows="20">katyperry
 justinbieber
+peterbe
 </textarea><input type="submit" value="Test">
 </div>
 </form>
@@ -42,8 +43,8 @@ $(function() {
           c = $('ul#followsyou');
         else
           c = $('ul#followsyounot');
-        $('<a>', {href: 'https://twitter.com/' + x})
-          .appendTo($('<li>', {text: x}).appendTo(c));
+        $('<a>', {href: '/following/' + x, text: x})
+          .appendTo($('<li>').appendTo(c));
       });
     });
     return false;

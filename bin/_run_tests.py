@@ -11,6 +11,7 @@ site.addsitedir(path('vendor'))
 
 TEST_MODULES = [
     'tests.test_handlers',
+    'tests.test_models',
 ]
 
 

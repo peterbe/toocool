@@ -13,7 +13,7 @@ from tornado.testing import LogTrapTestCase, AsyncHTTPTestCase
 import app
 from tornado_utils.http_test_client import TestClient, HTTPClientMixin
 
-class _DatabaseTestCaseMixin(object):
+class DatabaseTestCaseMixin(object):
     _once = False
 
     def setup_connection(self):
@@ -30,7 +30,7 @@ class _DatabaseTestCaseMixin(object):
          if x not in ('system.indexes',)]
 
 
-class BaseAsyncTestCase(AsyncHTTPTestCase, _DatabaseTestCaseMixin):
+class BaseAsyncTestCase(AsyncHTTPTestCase, DatabaseTestCaseMixin):
 
     def setUp(self):
         super(BaseAsyncTestCase, self).setUp()
