@@ -88,7 +88,7 @@ function update() {
     var before = $(key).text();
     if (before !== '' + num) {
       // there's a change!
-      $(key).fadeTo(200, 0., function() {
+      $(key).fadeTo(200, 0.1, function() {
         $(this).text(num).fadeTo(300, 1.0);
       });
     }
