@@ -10,21 +10,23 @@
 <h1>{{ page_title }}</h1>
 
 <table>
-  {% for i, (username, ratio) in enumerate(ratios) %}
+  {% for i, tweeter in enumerate(ratios) %}
   <tr>
-    <td>{{ i + 1 }}</td>
+    <td>{{ i + 1 }}.</td>
     {% if user %}
     <td>
-      {% if username == user %}
+      {% if tweeter['username'] == user %}
       {{ username }} &larr; me me me!
       {% else %}
-      <a href="/following/{{ username }}">{{ username }}</a>
+      <a href="/following/{{ tweeter['username'] }}">{{ tweeter['username'] }}</a>
       {% end %}
     </td>
     {% else %}
-    <td>{{ username }}</td>
+    <td><a href="https://twitter.com/#!/{{ tweeter['username'] }}"
+           title="{{ tweeter['name'] }} (following {{ tweeter['following'] }}, followed by {{ tweeter['followers'] }})"
+           >{{ tweeter['username'] }}</a></td>
     {% end %}
-    <td>{{ '%.1f' % ratio }}</td>
+    <td>{{ '%.1f' % tweeter['ratio'] }}</td>
   </tr>
   {% end %}
 </table>

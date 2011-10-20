@@ -460,9 +460,11 @@ class CoolestHandler(BaseHandler):  # pragma: no cover  (under development)
         options = {}
         user = self.get_current_user()
         key = 'ratios'
-        ratios = self.redis.zrange(key, 0, -1, withscores=True)
-        ratios.reverse()
-        options['ratios'] = ratios
+
+        #ratios = self.redis.zrange(key, 0, -1, withscores=True)
+        #ratios.reverse()
+
+        options['ratios'] = self.db.Tweeter.find().sort('ratio', -1)
         options['user'] = user
         options['page_title'] = \
           "Coolest in the world! ...on Twitter ...using this site"
