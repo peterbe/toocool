@@ -25,6 +25,19 @@ function compareAssociativeArrays(a, b) {
    return true;
 }
 
+function tsep(n,swap) {
+  var ts=",", ds="."; // thousands and decimal separators
+  if (swap) { ts=","; ts="."; } // swap if requested
+
+  var ns = String(n),ps=ns,ss=""; // numString, prefixString, suffixString
+  var i = ns.indexOf(".");
+  if (i!=-1) { // if ".", then split:
+    ps = ns.substring(0,i);
+    ss = ds+ns.substring(i+1);
+  }
+  return ps.replace(/(\d)(?=(\d{3})+([.]|$))/g,"$1"+ts)+ss;
+}
+
 
 // globals
 var previous = {}
@@ -86,10 +99,10 @@ function _set_up_charts(numbers) {
 function update() {
   function incr_number(key, num) {
     var before = $(key).text();
-    if (before !== '' + num) {
+    if (before !== '' + tsep(num)) {
       // there's a change!
       $(key).fadeTo(200, 0.1, function() {
-        $(this).text(num).fadeTo(300, 1.0);
+        $(this).text(tsep(num)).fadeTo(300, 1.0);
       });
     }
   }

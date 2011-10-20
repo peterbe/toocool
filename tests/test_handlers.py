@@ -541,6 +541,26 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertEqual(peter['name'], 'Peter Bengtsson')
         self.assertEqual(peter['last_tweet_date'], None)
 
+    def test_lookups(self):
+        url = self.reverse_url('lookups')
+        response = self.client.get(url)
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response.body.count('>0<'), 5)
+
+        # fake in some redis data
+        self.redis.set('lookups:json', 1111)
+        self.redis.set('lookups:jsonp', 2222)
+        self.redis.set('auths:total', 666)
+        self.redis.set('lookups:usernames', 5555555)
+
+        response = self.client.get(url)
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response.body.count('>0<'), 0)
+        self.assertTrue('>5,555,555<' in response.body)
+        self.assertTrue('>3,333<' in response.body)
+        self.assertTrue('>1,111<' in response.body)
+        self.assertTrue('>2,222<' in response.body)
+        self.assertTrue('>666<' in response.body)
 
 def make_twitter_get_authenticated_user_callback(struct):
     def twitter_get_authenticated_user(self, callback, **kw):

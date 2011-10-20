@@ -19,23 +19,23 @@ td { font-size:2.5em; font-weight:bold; }
 <table>
   <tr>
     <th>Total number of usernames looked up:</th>
-    <td><span id="lookups-usernames">{{ lookups_usernames }}</span></td>
+    <td><span id="lookups-usernames">{% module Thousands(lookups_usernames) %}</span></td>
   </tr>
   <tr>
     <th>Twitter requests total:</th>
-    <td><span id="lookups-total">{{ lookups_json + lookups_jsonp }}</span></td>
+    <td><span id="lookups-total">{% module Thousands(lookups_json + lookups_jsonp) %}</span></td>
   </tr>
   <tr>
     <th>Twitter requests by JSON:</th>
-    <td><span id="lookups-json">{{ lookups_json }}</span></td>
+    <td><span id="lookups-json">{% module Thousands(lookups_json) %}</span></td>
   </tr>
   <tr>
     <th>Twitter requests by JSONP:</th>
-    <td><span id="lookups-jsonp">{{ lookups_jsonp }}</span></td>
+    <td><span id="lookups-jsonp">{% module Thousands(lookups_jsonp) %}</span></td>
   </tr>
   <tr>
     <th>Authentications:</th>
-    <td><span id="auths">{{ auths }}</span></td>
+    <td><span id="auths">{% module Thousands(auths) %}</span></td>
   </tr>
 </table>
 <div id="charts">

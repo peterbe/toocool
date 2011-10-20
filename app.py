@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import re
 import here
 import tornado.httpserver
 import tornado.ioloop
@@ -19,6 +20,17 @@ define("port", default=8000, help="run on the given port", type=int)
 
 class Application(tornado.web.Application):
     def __init__(self, database_name=None):
+        _ui_modules = __import__('ui_modules', globals(), locals(), ['ui_modules'], -1)
+        ui_modules_map = {}
+        for name in [x for x in dir(_ui_modules) if re.findall('[A-Z]\w+', x)]:
+            thing = getattr(_ui_modules, name)
+            try:
+                if issubclass(thing, tornado.web.UIModule):
+                    ui_modules_map[name] = thing
+            except TypeError:
+                # most likely a builtin class or something
+                pass
+
         routed_handlers = route.get_routes()
         app_settings = dict(
             title=settings.PROJECT_TITLE,
@@ -26,6 +38,7 @@ class Application(tornado.web.Application):
             static_path=os.path.join(os.path.dirname(__file__), "static"),
             cookie_secret=settings.COOKIE_SECRET,
             debug=options.debug,
+            ui_modules=ui_modules_map,
             twitter_consumer_key=settings.TWITTER_CONSUMER_KEY,
             twitter_consumer_secret=settings.TWITTER_CONSUMER_SECRET,
         )
