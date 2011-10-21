@@ -24,11 +24,12 @@
 <!-- NON-LOGGED IN BLOCK -->
 <p class="description">Ever wanted to know who in your twitter feed actually follows you back? <strong>Too Cool For Me</strong> is a simple tool which tells you quickly and easily who is and isn't following you back in your twitter feed. Try it out - login to your twitter account to start.</p>
 <p class="login">
-	<a href="/auth/twitter/" class="twitter-login">
+	<a href="{{ reverse_url('auth_twitter') }}" class="twitter-login">
 		<img src="/static/images/twitter-small.png" alt="twitter bird">
 		<span class="text">Login with Twitter to start</span>
 	</a>
-	<span class="readonly">&laquo; Read-only authorisation, we cannot post to your account.
+	<span class="readonly">&laquo; <strong>Read-only authorisation</strong>,
+        we cannot post to your account.
 	<br>Once you're logged in, we'll show you what to do.</span>
 </p>
 <!-- END NON-LOGGED IN BLOCK -->

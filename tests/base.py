@@ -19,6 +19,7 @@ class DatabaseTestCaseMixin(object):
     def setup_connection(self):
         if not self._once:
             self._once = True
+            assert 'test' in self.db.name
             self._emptyCollections()
 
     def teardown_connection(self):
@@ -43,7 +44,6 @@ class BaseAsyncTestCase(AsyncHTTPTestCase, DatabaseTestCaseMixin):
 
 class BaseHTTPTestCase(BaseAsyncTestCase, HTTPClientMixin):
 
-    #_once = False
     def setUp(self):
         super(BaseHTTPTestCase, self).setUp()
 

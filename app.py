@@ -27,7 +27,7 @@ class Application(tornado.web.Application):
             try:
                 if issubclass(thing, tornado.web.UIModule):
                     ui_modules_map[name] = thing
-            except TypeError:
+            except TypeError:  # pragma: no cover
                 # most likely a builtin class or something
                 pass
 
@@ -48,7 +48,7 @@ class Application(tornado.web.Application):
                                         settings.REDIS_PORT)
 
         from models import connection
-        self.db = connection[settings.DATABASE_NAME]
+        self.db = connection[database_name or settings.DATABASE_NAME]
 
 
 
@@ -63,5 +63,5 @@ def main():  # pragma: no cover
         pass
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()

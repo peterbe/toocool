@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2>Sorry, don't have <strike>Twitter</strike> coolness stats about
+<strong>{{ ' or '.join(missing_info) }}</strong>
+</h2>
+
+<p class="login">
+	<a href="{{ reverse_url('auth_twitter') }}?next={{ next_url }}" class="twitter-login">
+		<img src="/static/images/twitter-small.png" alt="twitter bird">
+		<span class="text">Login with Twitter to fetch that missing information</span>
+	</a>
+	<span class="readonly">&laquo; <strong>Read-only authorisation</strong>,
+        we cannot post to your account.
+        </span>
+</p>
+<p>Once you have logged in we can pick up the necessary information to
+see who's <strike>got the most Twitter followers</strike> coolest.</p>
+
+
+{% end %}

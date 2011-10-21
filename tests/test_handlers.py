@@ -10,7 +10,6 @@ class HandlersTestCase(BaseHTTPTestCase):
 
     def setUp(self):
         super(HandlersTestCase, self).setUp()
-
         TwitterAuthHandler.authenticate_redirect = \
           twitter_authenticate_redirect
 
@@ -68,7 +67,7 @@ class HandlersTestCase(BaseHTTPTestCase):
           'email': email,
           'access_token': {'key': '0123456789',
                            'secret': 'xxx'},
-          'id': 9876543210,
+          'id': 9999999999,
           'followers_count': 333,
           'friends_count': 222,
         }
@@ -212,6 +211,10 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertEqual(int(self.redis.get('lookups:username:peterbe')), 2)
         self.assertEqual(int(self.redis.get('lookups:usernames')), 2)
 
+        self.assertEqual(self.db.Following
+                         .find_one({'user': 'obama'})['following'],
+                         False)
+
     def test_jsonp(self):
         url = self.reverse_url('jsonp')
         response = self.client.get(url, {'username': 'obama'})
@@ -255,6 +258,13 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertEqual(struct['stephenfry'], False)
         self.assertEqual(struct['fox2mike'], True)
 
+        self.assertEqual(self.db.Following
+                         .find_one({'user': 'stephenfry'})['following'],
+                         False)
+        self.assertEqual(self.db.Following
+                         .find_one({'user': 'fox2mike'})['following'],
+                         True)
+
         FollowsHandler.twitter_request = \
           make_mock_twitter_request({u'relationship': {
                    u'target': {u'followed_by': True,
@@ -268,6 +278,16 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertEqual(struct['stephenfry'], False)
         self.assertEqual(struct['fox2mike'], True)
         self.assertEqual(struct['ashley'], True)
+
+        self.assertEqual(self.db.Following
+                         .find_one({'user': 'stephenfry'})['following'],
+                         False)
+        self.assertEqual(self.db.Following
+                         .find_one({'user': 'fox2mike'})['following'],
+                         True)
+        self.assertEqual(self.db.Following
+                         .find_one({'user': 'ashley'})['following'],
+                         True)
 
     def test_following(self):
         url = self.reverse_url('following', 'obama')
@@ -306,6 +326,14 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertTrue('%.1f' % (41700.0/1300) in response.body)
         self.assertTrue('%.1f' % (417.0/330) in response.body)
 
+        following = self.db.Following.find_one({'user': 'obama'})
+        assert following
+        self.assertEqual(following,
+                         self.db.Following.find_one({'user': 'obama',
+                                                     'follows': 'peterbe'}))
+        self.assertTrue(not following['following'])
+        self.assertTrue(not self.db.Following.find_one({'user': 'peterbe'}))
+
         # same URL but different remote data should yield the same result
         # because of temporary caching
         FollowingHandler.twitter_request = \
@@ -337,6 +365,11 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertTrue('%.1f' % (41700.0/1300) in response.body)
         self.assertTrue('%.1f' % (417.0/330) in response.body)
 
+        following = self.db.Following.find_one({'user': 'obama'})
+        assert following
+        self.assertTrue(not following['following'])
+        self.assertTrue(not self.db.Following.find_one({'user': 'peterbe'}))
+
         url = self.reverse_url('following', 'chris')
         FollowingHandler.twitter_request = \
           make_mock_twitter_request({
@@ -357,6 +390,16 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertTrue('<title>chris follows me' in response.body)
         self.assertTrue('%.1f' % (400.0/1000) in response.body)
         self.assertTrue('%.1f' % (417.0/330) in response.body)
+
+        following = self.db.Following.find_one({'user': 'chris'})
+        assert following
+        self.assertTrue(following['following'])
+        self.assertTrue(not self.db.Following.find_one({'user': 'peterbe'}))
+################################################################################
+        self.assertEqual(following,
+                         self.db.Following.find_one({'user': 'chris',
+                                                     'follows': 'peterbe'}))
+
 
     def test_following_temporary_glitch_on_info(self):
         url = self.reverse_url('following', 'obama')
@@ -562,6 +605,163 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertTrue('>2,222<' in response.body)
         self.assertTrue('>666<' in response.body)
 
+    def test_everyone(self):
+        url = self.reverse_url('everyone')
+        response = self.client.get(url)
+        self.assertEqual(response.code, 302)
+
+        self._login()
+        response = self.client.get(url)
+        self.assertEqual(response.code, 200)
+
+    def test_following_compared_to_not_logged_in(self):
+        url = self.reverse_url('following_compared', 'obama', 'peterbe')
+        response = self.client.get(url)
+        self.assertEqual(response.code, 200)
+        self.assertTrue('Sorry' in response.body)
+
+        login_url = self.reverse_url('auth_twitter')
+        self.assertTrue('href="%s?next=%s"' % (login_url, url)
+                        in response.body)
+
+    def test_following_compared_logged_in_self(self):
+        url = self.reverse_url('following_compared', 'obama', 'peterbe')
+        self._login()
+
+        FollowingHandler.twitter_request = \
+          make_mock_twitter_request({
+            "/friendships/show": {u'relationship': {
+                                    u'target': {u'followed_by': False,
+                                    u'following': False,
+                                    u'screen_name': u'obama'}}},
+            "/users/show?screen_name=obama": {u'followers_count': 41700,
+                            u'following': False,
+                            u'friends_count': 1300,
+                            u'name': u'Barak',
+                            u'screen_name': u'obama',
+                            'id': 9876543210,
+                            },
+            "/users/show?screen_name=peterbe": {
+                            u'followers_count': 417,
+                            u'following': False,
+                            u'friends_count': 330,
+                            u'name': u'Peter Bengtsson',
+                            u'screen_name': u'peterbe',
+                            'id': 123456789,
+                            }
+            })
+
+        response = self.client.get(url)
+        self.assertEqual(response.code, 200)
+
+        self.assertTrue('is too cool for peterbe' in response.body)
+        self.assertTrue('<title>obama is too cool for peterbe'
+                        in response.body)
+
+    def test_following_compared_logged_in_different(self):
+        url = self.reverse_url('following_compared', 'obama', 'kimk')
+        self._login()
+
+        FollowingHandler.twitter_request = \
+          make_mock_twitter_request({
+            "/friendships/show": {u'relationship': {
+                                    u'target': {u'followed_by': False,
+                                    u'following': False,
+                                    u'screen_name': u'obama'}}},
+            "/users/show?screen_name=obama": {u'followers_count': 41700,
+                            u'following': False,
+                            u'friends_count': 1300,
+                            u'name': u'Barak',
+                            u'screen_name': u'obama',
+                            'id': 9876543210,
+                            },
+            "/users/show?screen_name=kimk": {
+                            u'followers_count': 40117,
+                            u'following': False,
+                            u'friends_count': 200,
+                            u'name': u'Kim Kardashian',
+                            u'screen_name': u'kimk',
+                            'id': 123456789,
+                            }
+            })
+
+        response = self.client.get(url)
+        self.assertEqual(response.code, 200)
+
+        self.assertTrue('is too cool for kimk' in response.body)
+        self.assertTrue('<title>obama is too cool for kimk'
+                        in response.body)
+
+        obama = self.db.Tweeter.find_one({'username': 'obama'})
+        self.assertEqual(obama['ratio'], 41700.0 / 1300)
+        self.assertEqual(obama['ratio_rank'], 2)
+
+        kimk = self.db.Tweeter.find_one({'username': 'kimk'})
+        self.assertEqual(kimk['ratio'], 40117.0 / 200)
+        self.assertEqual(kimk['ratio_rank'], 1)
+
+    def test_suggest_tweet(self):
+        url = self.reverse_url('suggest_tweet')
+        response = self.client.get(url)
+        self.assertEqual(response.code, 400)
+
+        response = self.client.get(url, {'username': 'obama'})
+        self.assertEqual(response.code, 403)
+
+        self._login()
+        obama = self.db.Tweeter()
+        obama['username'] = u'obama'
+        obama['name'] = u'Barak Obama'
+        obama['user_id'] = 123456789
+        obama['followers'] = 98765
+        obama['following'] = 1000
+        obama.set_ratio()
+        obama.save()
+
+        response = self.client.get(url, {'username': 'obama'})
+        self.assertEqual(response.code, 200)
+
+        struct = json.loads(response.body)
+        self.assertTrue(len(struct['tweet']) <= 140)
+        self.assertTrue(struct['tweet'].endswith('#toocool'))
+        self.assertTrue('@obama' in struct['tweet'])
+        self.assertTrue('66 times cooler' in struct['tweet'])
+
+        billy = self.db.Tweeter()
+        billy['username'] = u'Mr_Billy_Nomates'
+        billy['name'] = u'Billy Nomates von Longname'
+        billy['user_id'] = 333334444
+        billy['followers'] = 45
+        billy['following'] = 100
+        billy.set_ratio()
+        billy.save()
+
+        response = self.client.get(url, {'username': 'Mr_Billy_Nomates'})
+        self.assertEqual(response.code, 200)
+
+        struct = json.loads(response.body)
+        self.assertTrue(len(struct['tweet']) <= 140)
+        self.assertTrue(struct['tweet'].endswith('#toocool'))
+        self.assertTrue('@Mr_Billy_Nomates' in struct['tweet'])
+
+        peterbe = self.db.Tweeter.find_one({'username': 'peterbe'})
+        twin = self.db.Tweeter()
+        twin['username'] = u'peterbestwin'
+        twin['name'] = u'Someone Likeme'
+        twin['user_id'] = 111112222
+        twin['followers'] = peterbe['followers'] + 1
+        twin['following'] = peterbe['following'] - 1
+        twin.set_ratio()
+        twin.save()
+
+        response = self.client.get(url, {'username': 'peterbestwin'})
+        self.assertEqual(response.code, 200)
+
+        struct = json.loads(response.body)
+        self.assertTrue(len(struct['tweet']) <= 140)
+        self.assertTrue(struct['tweet'].endswith('#toocool'))
+        self.assertTrue('@peterbestwin' in struct['tweet'])
+
 def make_twitter_get_authenticated_user_callback(struct):
     def twitter_get_authenticated_user(self, callback, **kw):
         callback(struct)
@@ -573,7 +773,7 @@ def twitter_get_authenticated_user(self, callback, **kw):
       'username': u'peterbe',
       'email': None,
       'access_token': {'key': '0123456789', 'secret': 'xxx'},
-      'id': 123456789,
+      'id': 1111111111,
       'screen_name': u'peterbe',
       'followers_count': 300,
       'friends_count': 255,

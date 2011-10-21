@@ -18,10 +18,12 @@ th.label { border-bottom:1px solid #999; }
 <a href="https://twitter.com/#!{{ username }}"
 ><img src="http://api.twitter.com/1/users/profile_image/{{ username }}.png?size=bigger"></a>
 <strong>{{ username }}</strong>
-{% if follows %}<span class="followsyou">follows me!</span>
+{% if follows %}<span class="followsyou">follows
+{% if compared_to %}<strong>{{ compared_to }}</strong>{% else %}me{% end %}!</span>
 {% else %}
   {% if follows is not None %}
-    <span class="followsyounot">is too cool for me</span>
+    <span class="followsyounot">is too cool for
+     {% if compared_to %}<strong>{{ compared_to }}</strong>{% else %}me{% end %}</span>
   {% else %}
     <em>couldn't even be looked up on Twitter</em>
   {% end %}
@@ -33,7 +35,11 @@ th.label { border-bottom:1px solid #999; }
 <script type="text/javascript" src="https://www.google.com/jsapi"></script>
 <script type="text/javascript">
   google.load("visualization", "1", {packages:["corechart"]});
-  google.setOnLoadCallback(drawChart);
+  google.load("jquery", "1.6.4");
+  google.setOnLoadCallback(function() {
+    drawChart();
+    addTweetButton();
+  });
   function drawChart() {
     var data = new google.visualization.DataTable();
     data.addColumn('string', 'Year');
@@ -43,7 +49,7 @@ th.label { border-bottom:1px solid #999; }
     data.setValue(0, 0, '{{ username }}');
     data.setValue(0, 1, {{ info[username]['followers_count'] }});
     data.setValue(0, 2, {{ info[username]['friends_count'] }});
-    data.setValue(1, 0, 'you');
+    data.setValue(1, 0, {% if compared_to %}'{{ compared_to }}'{% else %}'you'{% end %});
     data.setValue(1, 1, {{ info[this_username]['followers_count'] }});
     data.setValue(1, 2, {{ info[this_username]['friends_count'] }});
      var chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
@@ -52,6 +58,19 @@ th.label { border-bottom:1px solid #999; }
                       vAxis: {title: 'number of people'},
                       hAxis: {title: 'cool people have bigger \'followers\' than \'following\''}
                      });
+  }
+
+  function addTweetButton() {
+
+    $.getJSON('/following/suggest_tweet.json', {username: '{{ username }}'}, function(response) {
+      $('<a href="https://twitter.com/share" class="twitter-share-button">')
+        .attr('data-url', response.url)
+          .attr('data-text', response.text)
+            .attr('data-count', 'horizontal')
+              .text('Tweet')
+                .appendTo($('<div>').prependTo('#content'));
+      $('#content').prepend($('<script>').attr('src', '//platform.twitter.com/widgets.js'));
+    });
   }
 </script>
 

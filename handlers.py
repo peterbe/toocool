@@ -1,5 +1,6 @@
 import re
 import datetime
+import random
 import os
 import logging
 from pprint import pprint, pformat
@@ -40,6 +41,20 @@ class BaseHandler(tornado.web.RequestHandler):
     @property
     def db(self):
         return self.application.db
+
+    def save_following(self, source_username, dest_username, result):
+        assert isinstance(result, bool)
+        following = (self.db.Following
+                     .find_one({'user': source_username,
+                                'follows': dest_username}))
+        if not following:
+            following = self.db.Following()
+            following['user'] = source_username
+            following['follows'] = dest_username
+
+        if result != following['following']:
+            following['following'] = result
+            following.save()
 
     def save_tweeter_user(self, user):
         user_id = user['id']
@@ -87,6 +102,21 @@ class BaseHandler(tornado.web.RequestHandler):
 
         if _save:
             tweeter.save()
+
+        return tweeter
+
+    BACKGROUND_IMAGES = [
+          '/static/images/chuck.jpg',
+          '/static/images/rock.jpg',
+        ]
+
+    def render(self, template, **options):
+        background_image = self.redis.get('background_image')
+        if not background_image:
+            background_image = random.choice(self.BACKGROUND_IMAGES)
+            self.redis.setex('background_image', background_image, 60)
+        options['background_image'] = background_image
+        return tornado.web.RequestHandler.render(self, template, **options)
 
 
 @route('/')
@@ -246,6 +276,8 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
                 data[each['screen_name']] = False
             key = 'follows:%s:%s' % (this_username, each['screen_name'])
             self.redis.setex(key, int(data[each['screen_name']]), 60 * 5)
+            self.save_following(each['screen_name'], this_username,
+                                bool(data[each['screen_name']]))
 
         if self.jsonp:
             self.write_jsonp(self.jsonp, data)
@@ -260,6 +292,7 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
         key = 'follows:%s:%s' % (this_username, username)
         if target_follows is not None:
             self.redis.setex(key, int(bool(target_follows)), 60)
+            self.save_following(username, this_username, bool(target_follows))
         data[username] = target_follows
         if self.jsonp:
             self.write_jsonp(self.jsonp, data)
@@ -345,8 +378,10 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def get(self, username):
-        options = {'username': username}
-        #this_username = self.get_current_user()
+        options = {
+          'username': username,
+          'compared_to': None
+        }
         current_user = self.get_current_user()
         if not current_user:
             self.redirect(self.reverse_url('auth_twitter'))
@@ -363,6 +398,9 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
                                     source_screen_name=this_username,
                                     target_screen_name=username,
                                     access_token=access_token)
+            if result and 'relationship' in result:
+                value = result['relationship']['target']['following']
+                self.save_following(username, this_username, value)
         else:
             result = bool(int(value))
             key = None
@@ -378,7 +416,6 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         if isinstance(result, bool):
             value = result
         else:
-            logging.info("Result (%r): %r" % (key, result))
             if result and 'relationship' in result:
                 value = result['relationship']['target']['following']
                 if key and value is not None:
@@ -406,9 +443,7 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         else:
             result = json_decode(value)
             key = None
-        self._on_info(result, key, options, username)
 
-    def _on_info(self, result, key, options, username):
         if result is None:
             options['error'] = "Unable to look up info for %s" % username
             self._render(options)
@@ -444,13 +479,170 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         following = options['info'][value]['friends_count']
         ratio = 1.0 * followers / max(following, 1)
         options['info'][value]['ratio'] = '%.1f' % ratio
-        self.redis.sadd('allusernames', value)
         key = 'ratios'
-        self.redis.zadd(key, **{value: ratio})
-        _usernames = self.redis.zrange(key, 0, -1, withscores=False)
-        _usernames.reverse()
-        options['info'][value]['rank'] = _usernames.index(value)
+        tweeter = self.db.Tweeter.find_one({'username': value})
+        assert tweeter
+        rank = tweeter.get('ratio_rank', None)
+        # This should be re-calculated periodically
+        if rank is None:
+            rank = 0
+            for each in (self.db.Tweeter
+                         .find(fields=('username',))
+                         .sort('ratio', -1)):
+                rank += 1
+                if each['username'] == value:
+                    tweeter['ratio_rank'] = rank
+                    tweeter.save()
+                    break
+        options['info'][value]['rank'] = rank
 
+
+@route('/following/suggest_tweet.json', name='suggest_tweet')
+class SuggestTweetHandler(BaseHandler):
+
+    def get(self):
+        username = self.get_argument('username')
+        current_user = self.get_current_user()
+        if not current_user:
+            raise HTTPError(403, "Not logged in")
+        compared_to = current_user['username']
+
+        tweeter = self.db.Tweeter.find_one({'username': username})
+        if not tweeter:
+            raise HTTPError(400, "Unknown tweeter %r" % username)
+        compared_tweeter = self.db.Tweeter.find_one({'username': compared_to})
+        if not tweeter:
+            raise HTTPError(400, "Unknown tweeter %r" % compared_to)
+
+        def make_message(include_hashtag=False, include_fullname=False):
+            if include_fullname:
+                name = '@%s (%s)' % (username, fullname)
+            else:
+                name = '@%s' % username
+            tweet = "Apparently "
+            if abs(a - b) < 1.0:
+                tweet += "%s is " % name
+                tweet += "as cool as me"
+            elif b > a:
+                tweet += "I am "
+                tweet += "%s times cooler than %s" % (get_times(a, b), name)
+            elif a > b:
+                tweet += "%s is " % name
+                tweet += "%s times cooler than me" % get_times(a, b)
+
+            hashtag = "#toocool"
+            if include_hashtag:
+                tweet += " %s" % hashtag
+
+            return tweet
+
+        def get_times(*numbers):
+            small = min(numbers)
+            big = max(numbers)
+            bigger = round(big / small)
+            if int(bigger) == 2:
+                return "two"
+            if int(bigger) == 3:
+                return "three"
+            return "about %s" % int(bigger)
+
+        a, b = tweeter['ratio'], compared_tweeter['ratio']
+        fullname = tweeter['name']
+
+        tweet = make_message(include_hashtag=False, include_fullname=True)
+        if len(tweet) > 140:
+            tweet = make_message(include_hashtag=False, include_fullname=False)
+            if len(tweet) > 140:
+                tweet = make_message(include_hashtag=False,
+                                     include_fullname=False)
+
+        base_url = self.request.host
+        perm_url = self.reverse_url('following_compared',
+                                    username,
+                                    compared_to)
+        url = 'http://%s%s' % (base_url, perm_url)
+
+        #self.write_json({'tweet': tweet})
+        self.write_json({'text': tweet, 'url': url})
+
+
+@route('/following/(\w+)/vs/(\w+)', name='following_compared')
+class FollowingComparedtoHandler(FollowingHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self, username, compared_to):
+        options = {'compared_to': compared_to}
+        tweeter = self.db.Tweeter.find_one({'username': username})
+        compared_tweeter = self.db.Tweeter.find_one({'username': compared_to})
+
+        current_user = self.get_current_user()
+        if current_user:
+            # if we don't have tweeter info on any of them, fetch it
+            if not tweeter:
+                # fetch it
+                result = yield tornado.gen.Task(self.twitter_request,
+                                        "/users/show",
+                                        screen_name=username,
+                                        access_token=current_user['access_token'])
+                tweeter = self.save_tweeter_user(result)
+            if not compared_tweeter:
+                result = yield tornado.gen.Task(self.twitter_request,
+                                        "/users/show",
+                                        screen_name=compared_to,
+                                        access_token=current_user['access_token'])
+                compared_tweeter = self.save_tweeter_user(result)
+
+        elif not tweeter and not compared_tweeter:
+            options = {
+              'page_title': 'Comparing %s to %s' % (username, compared_to)
+            }
+            options['missing_info'] = []
+            if not tweeter:
+                options['missing_info'].append(username)
+            if not compared_tweeter:
+                options['missing_info'].append(compared_to)
+            options['next_url'] = self.request.path
+            self.render('following_compared_missing.html', **options)
+            return
+
+        key = 'follows:%s:%s' % (compared_to, username)
+        value = self.redis.get(key)
+        if value is None:
+            following = (self.db.Following
+                       .find_one({'user': tweeter['_id'],
+                                  'follows': compared_tweeter['_id']}))
+            if following:
+                options['follows'] = following['following']
+            else:
+                options['follows'] = False
+        else:
+            value = bool(int(value))
+            options['follows'] = value
+
+        if options['follows']:
+            options['page_title'] = ('%s follows %s' %
+                                     (username, compared_to))
+        else:
+            options['page_title'] = ('%s is too cool for %s' %
+                                     (username, compared_to))
+
+        options['info'] = {
+          username: {
+            'followers_count': tweeter['followers'],
+            'friends_count': tweeter['following'],
+          },
+          compared_to: {
+            'followers_count': compared_tweeter['followers'],
+            'friends_count': compared_tweeter['following'],
+          }
+        }
+        options['username'] = username
+        options['this_username'] = compared_to
+        self._set_ratio(options, 'username')
+        self._set_ratio(options, 'this_username')
+        options['compared_to'] = compared_to
+        self.render('following.html', **options)
 
 
 @route(r'/coolest', name='coolest')
@@ -612,6 +804,7 @@ class LookupsHandler(BaseHandler):
         options['page_title'] = "Lookups"
         options.update(self.get_lookups())
         self.render('lookups.html', **options)
+
 
 @route('/lookups.json', name='lookups_json')
 class LookupsJSONHandler(LookupsHandler):
