@@ -375,6 +375,14 @@ class TestServiceHandler(BaseHandler):
 @route('/following/(\w+)', name='following')
 class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
 
+    def get_following_perm_url(self, username, compared_to):
+        base_url = self.request.host
+        perm_url = self.reverse_url('following_compared',
+                                    username,
+                                    compared_to)
+        return 'http://%s%s' % (base_url, perm_url)
+
+
     @tornado.web.asynchronous
     @tornado.gen.engine
     def get(self, username):
@@ -468,6 +476,8 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
             self._set_ratio(options, 'username')
             self._set_ratio(options, 'this_username')
             options['page_title'] = page_title % options['username']
+            options['perm_url'] = self.get_following_perm_url(
+              options['username'], options['this_username'])
             self.render('following.html', **options)
         else:
             options['page_title'] = 'Error :('
@@ -502,10 +512,14 @@ class SuggestTweetHandler(BaseHandler):
 
     def get(self):
         username = self.get_argument('username')
-        current_user = self.get_current_user()
-        if not current_user:
-            raise HTTPError(403, "Not logged in")
-        compared_to = current_user['username']
+
+        if self.get_argument('compared_to', None):
+            compared_to = self.get_argument('compared_to')
+        else:
+            current_user = self.get_current_user()
+            if not current_user:
+                raise HTTPError(403, "Not logged in")
+            compared_to = current_user['username']
 
         tweeter = self.db.Tweeter.find_one({'username': username})
         if not tweeter:
@@ -513,6 +527,11 @@ class SuggestTweetHandler(BaseHandler):
         compared_tweeter = self.db.Tweeter.find_one({'username': compared_to})
         if not tweeter:
             raise HTTPError(400, "Unknown tweeter %r" % compared_to)
+
+        if self.get_current_user() and self.get_current_user()['username'] == compared_to:
+            different_user = False
+        else:
+            different_user = True
 
         def make_message(include_hashtag=False, include_fullname=False):
             if include_fullname:
@@ -522,13 +541,16 @@ class SuggestTweetHandler(BaseHandler):
             tweet = "Apparently "
             if abs(a - b) < 1.0:
                 tweet += "%s is " % name
-                tweet += "as cool as me"
+                tweet += "as cool as %s" % (compared_to if different_user else 'me')
             elif b > a:
-                tweet += "I am "
+                tweet += "%s am " % (compared_to if different_user else 'I')
                 tweet += "%s times cooler than %s" % (get_times(a, b), name)
             elif a > b:
                 tweet += "%s is " % name
-                tweet += "%s times cooler than me" % get_times(a, b)
+                tweet += "%s times cooler than %s" % (
+                  get_times(a, b),
+                  compared_to if different_user else 'me'
+                )
 
             hashtag = "#toocool"
             if include_hashtag:
@@ -642,6 +664,9 @@ class FollowingComparedtoHandler(FollowingHandler):
         self._set_ratio(options, 'username')
         self._set_ratio(options, 'this_username')
         options['compared_to'] = compared_to
+        options['perm_url'] = self.get_following_perm_url(
+          options['username'], options['this_username'])
+
         self.render('following.html', **options)
 
 

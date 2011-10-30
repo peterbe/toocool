@@ -9,10 +9,30 @@ table td { padding:8px 20px 8px 20px; }
 td.label { border-right:1px solid #999; }
 th.label { border-bottom:1px solid #999; }
 .footnut { font-size:0.8em; }
+#perm-link {
+  font-size:0.8em;
+  background-position:0 50%;
+  padding-left:18px;
+  background-image: url({{ static_url('images/link.png') }});
+  background-repeat: no-repeat;
+}
+#perm-link input {
+  width:300px;
+}
 </style>
 {% end %}
 
+{% block extra_header %}
+{% if compared_to is None %}
+<p id="perm-link"><a href="{{ perm_url }}">permanent link</a>
+<input type="url" name="_perm" value="{{ perm_url }}" size="30" style="display:none">
+</p>
+{% end %}
+{% end %}
+
+
 {% block content %}
+
 
 <p style="font-size:2em">
 <a href="https://twitter.com/#!{{ username }}"
@@ -34,10 +54,14 @@ th.label { border-bottom:1px solid #999; }
 
 <script type="text/javascript" src="https://www.google.com/jsapi"></script>
 <script type="text/javascript">
+var USERNAME = '{{ username }}';
+var COMPARED_TO = {% if compared_to %}'{{ compared_to }}'{% else %}null{% end %};
+
   google.load("visualization", "1", {packages:["corechart"]});
   google.load("jquery", "1.6.4");
   google.setOnLoadCallback(function() {
     drawChart();
+    addPermHover();
     addTweetButton();
   });
   function drawChart() {
@@ -46,10 +70,10 @@ th.label { border-bottom:1px solid #999; }
     data.addColumn('number', 'followers');
     data.addColumn('number', 'following');
     data.addRows(2);
-    data.setValue(0, 0, '{{ username }}');
+    data.setValue(0, 0, USERNAME);
     data.setValue(0, 1, {{ info[username]['followers_count'] }});
     data.setValue(0, 2, {{ info[username]['friends_count'] }});
-    data.setValue(1, 0, {% if compared_to %}'{{ compared_to }}'{% else %}'you'{% end %});
+    data.setValue(1, 0, COMPARED_TO ? COMPARED_TO : 'you');
     data.setValue(1, 1, {{ info[this_username]['followers_count'] }});
     data.setValue(1, 2, {{ info[this_username]['friends_count'] }});
      var chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
@@ -60,9 +84,26 @@ th.label { border-bottom:1px solid #999; }
                      });
   }
 
-  function addTweetButton() {
+  function addPermHover() {
+    if ($('#perm-link').size()) {
+      $('#perm-link a').bind('mouseover', function() {
+        $('#perm-link input:hidden').show();
+      }).bind('mouseout', function() {
+        setTimeout(function() {
+          $('#perm-link input:visible').hide();
+        }, 10*1000);
+        $('#perm-link input').bind('focus', function() {
+          this.select();
+          $(this).unbind('focus');
+        });
+      });
+    }
+  }
 
-    $.getJSON('/following/suggest_tweet.json', {username: '{{ username }}'}, function(response) {
+  function addTweetButton() {
+    var data = {username: USERNAME};
+    if (COMPARED_TO) data.compared_to = COMPARED_TO;
+    $.getJSON('/following/suggest_tweet.json', data, function(response) {
       $('<a href="https://twitter.com/share" class="twitter-share-button">')
         .attr('data-url', response.url)
           .attr('data-text', response.text)
@@ -70,6 +111,7 @@ th.label { border-bottom:1px solid #999; }
               .text('Tweet')
                 .appendTo($('<div>').prependTo('#content'));
       $('#content').prepend($('<script>').attr('src', '//platform.twitter.com/widgets.js'));
+
     });
   }
 </script>
