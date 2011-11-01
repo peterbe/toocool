@@ -10,6 +10,10 @@ REDIS_PORT = 6379
 
 DATABASE_NAME = 'toocool'
 
+# complete this in your local_settings.py to get emails sent on errors
+ADMIN_EMAILS = (
+)
+
 try:
     from local_settings import *
 except ImportError:

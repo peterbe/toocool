@@ -1,0 +1,75 @@
+<html>
+<head>
+<title>Arse!! An error happened! ({{ status_code }})</title>
+<link href='http://fonts.googleapis.com/css?family=VT323' rel='stylesheet' type='text/css'>
+<style>
+body {
+    background:#0000aa;
+    color:#ffffff;
+    font-family:'VT323', courier;
+    font-size:15pt;
+    text-align:center;
+    margin:100px;
+}
+
+blink {
+    color:yellow;
+}
+
+.neg {
+    background:#fff;
+    color:#0000aa;
+    padding:2px 8px;
+    font-weight:bold;
+}
+
+p {
+    margin:30px 100px;
+    text-align:left;
+}
+
+a,a:hover {
+    color:inherit;
+    font:inherit;
+}
+
+.menu {
+    text-align:center;
+    margin-top:50px;
+}
+</style>
+</head>
+<body>
+<span class="neg">ERROR {{ status_code }} - NOT COOL!</span>
+
+<p>
+{% if status_code == 500 %}
+The page you requested caused an unexpected server error. In other words,
+it's not your fault. However, try restarting your computer and it will
+probably solve it.
+{% else %}
+  {% if status_code == 404 %}
+  The page is missing or never was written. You can wait and
+  see if it becomes available again,<br>or you can restart your computer.
+  {% else %}
+    {{ err_value }}<br>That's not good. Most likely this problem will
+    solve itself if you just restart your computer.
+
+  {% end %}
+
+{% end %}
+</p>
+
+
+
+
+<p>
+* Send us an e-mail to notify this and try it later.<br>
+
+* Press CTRL+ALT+DEL to restart your computer. You will<br>
+ &nbsp; lose unsaved information in any programs that are running.
+</p>
+Press any link to continue <blink>_</blink>
+
+</body>
+</html>

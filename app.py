@@ -38,6 +38,10 @@ class Application(tornado.web.Application):
             static_path=os.path.join(os.path.dirname(__file__), "static"),
             cookie_secret=settings.COOKIE_SECRET,
             debug=options.debug,
+            email_backend=options.debug and \
+                 'tornado_utils.send_mail.backends.console.EmailBackend' \
+              or 'tornado_utils.send_mail.backends.pickle.EmailBackend',
+            admin_emails=settings.ADMIN_EMAILS,
             ui_modules=ui_modules_map,
             twitter_consumer_key=settings.TWITTER_CONSUMER_KEY,
             twitter_consumer_secret=settings.TWITTER_CONSUMER_SECRET,
