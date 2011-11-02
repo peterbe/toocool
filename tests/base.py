@@ -48,7 +48,7 @@ class BaseHTTPTestCase(BaseAsyncTestCase, HTTPClientMixin):
         super(BaseHTTPTestCase, self).setUp()
 
         self._app.settings['email_backend'] = \
-          'utils.send_mail.backends.locmem.EmailBackend'
+          'tornado_utils.send_mail.backends.locmem.EmailBackend'
         self._app.settings['email_exceptions'] = False
         self.client = TestClient(self)
 

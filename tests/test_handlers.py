@@ -624,6 +624,33 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertTrue('href="%s?next=%s"' % (login_url, url)
                         in response.body)
 
+    def test_following_compared_to_not_logged_in_one_tweeter_known(self):
+        obama = self.db.Tweeter()
+        obama['user_id'] = 12345
+        obama['username'] = u'obama'
+        obama['name'] = u'Barak Obama'
+        obama['followers'] = 12350
+        obama['following'] = 100
+        obama.save()
+
+        url = self.reverse_url('following_compared', 'obama', 'peterbe')
+        response = self.client.get(url)
+        self.assertEqual(response.code, 200)
+        self.assertTrue('Sorry' in response.body)
+
+        login_url = self.reverse_url('auth_twitter')
+        self.assertTrue('href="%s?next=%s"' % (login_url, url)
+                        in response.body)
+
+        url = self.reverse_url('following_compared', 'peterbe', 'obama')
+        response = self.client.get(url)
+        self.assertEqual(response.code, 200)
+        self.assertTrue('Sorry' in response.body)
+
+        login_url = self.reverse_url('auth_twitter')
+        self.assertTrue('href="%s?next=%s"' % (login_url, url)
+                        in response.body)
+
     def test_following_compared_logged_in_self(self):
         url = self.reverse_url('following_compared', 'obama', 'peterbe')
         self._login()
@@ -722,10 +749,10 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertEqual(response.code, 200)
 
         struct = json.loads(response.body)
-        self.assertTrue(len(struct['tweet']) <= 140)
-        self.assertTrue(struct['tweet'].endswith('#toocool'))
-        self.assertTrue('@obama' in struct['tweet'])
-        self.assertTrue('66 times cooler' in struct['tweet'])
+        self.assertTrue(len(struct['text']) <= 140)
+        #self.assertTrue(struct['text'].endswith('#toocool'))
+        self.assertTrue('@obama' in struct['text'])
+        self.assertTrue('66 times cooler' in struct['text'])
 
         billy = self.db.Tweeter()
         billy['username'] = u'Mr_Billy_Nomates'
@@ -740,9 +767,9 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertEqual(response.code, 200)
 
         struct = json.loads(response.body)
-        self.assertTrue(len(struct['tweet']) <= 140)
-        self.assertTrue(struct['tweet'].endswith('#toocool'))
-        self.assertTrue('@Mr_Billy_Nomates' in struct['tweet'])
+        self.assertTrue(len(struct['text']) <= 140)
+        #self.assertTrue(struct['text'].endswith('#toocool'))
+        self.assertTrue('@Mr_Billy_Nomates' in struct['text'])
 
         peterbe = self.db.Tweeter.find_one({'username': 'peterbe'})
         twin = self.db.Tweeter()
@@ -758,9 +785,9 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertEqual(response.code, 200)
 
         struct = json.loads(response.body)
-        self.assertTrue(len(struct['tweet']) <= 140)
-        self.assertTrue(struct['tweet'].endswith('#toocool'))
-        self.assertTrue('@peterbestwin' in struct['tweet'])
+        self.assertTrue(len(struct['text']) <= 140)
+        #self.assertTrue(struct['text'].endswith('#toocool'))
+        self.assertTrue('@peterbestwin' in struct['text'])
 
 def make_twitter_get_authenticated_user_callback(struct):
     def twitter_get_authenticated_user(self, callback, **kw):

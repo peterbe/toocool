@@ -683,7 +683,7 @@ class FollowingComparedtoHandler(FollowingHandler):
                                         access_token=current_user['access_token'])
                 compared_tweeter = self.save_tweeter_user(result)
 
-        elif not tweeter and not compared_tweeter:
+        elif not tweeter or not compared_tweeter:
             options = {
               'page_title': 'Comparing %s to %s' % (username, compared_to)
             }
