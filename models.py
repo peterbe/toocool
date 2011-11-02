@@ -2,6 +2,9 @@ import re
 import datetime
 from pymongo.objectid import ObjectId
 from mongolite import Connection, Document
+
+
+
 connection = Connection()
 
 class BaseDocument(Document):
@@ -56,6 +59,38 @@ class Tweeter(BaseDocument):
         if not tweeter:
             tweeter = db.Tweeter.find_one({'username': re.compile(re.escape(username), re.I)})
         return tweeter
+
+    @staticmethod
+    def update_tweeter(tweeter, user):
+        if tweeter['name'] != user['name']:
+            tweeter['name'] = user['name']
+
+        if tweeter['username'] != user['screen_name']:
+            tweeter['username'] = user['screen_name']
+
+        if tweeter['followers'] != user['followers_count']:
+            tweeter['followers'] = user['followers_count']
+
+        if tweeter['following'] != user['friends_count']:
+            tweeter['following'] = user['friends_count']
+
+        def parse_status_date(dstr):
+            dstr = re.sub('\+\d{1,4}', '', dstr)
+            return datetime.datetime.strptime(
+              dstr,
+              '%a %b %d %H:%M:%S %Y'
+            )
+        last_tweet_date = None
+        if 'status' in user:
+            last_tweet_date = user['status']['created_at']
+            last_tweet_date = parse_status_date(last_tweet_date)
+            if tweeter['last_tweet_date'] != last_tweet_date:
+                tweeter['last_tweet_date'] = last_tweet_date
+
+        ratio_before = tweeter['ratio']
+        tweeter.set_ratio()
+        tweeter.save()
+
 
 
 @connection.register

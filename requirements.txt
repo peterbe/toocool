@@ -2,3 +2,5 @@ redis
 tornado
 mongolite
 mock
+tornado-utils
+Celery

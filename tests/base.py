@@ -8,10 +8,15 @@ import hmac
 import hashlib
 import unittest
 
+
 from tornado.testing import LogTrapTestCase, AsyncHTTPTestCase
+os.environ['ALWAYS_EAGER'] = 'true'
+import celery
+import settings
 
 import app
 from tornado_utils.http_test_client import TestClient, HTTPClientMixin
+
 
 class DatabaseTestCaseMixin(object):
     _once = False
@@ -51,6 +56,8 @@ class BaseHTTPTestCase(BaseAsyncTestCase, HTTPClientMixin):
           'tornado_utils.send_mail.backends.locmem.EmailBackend'
         self._app.settings['email_exceptions'] = False
         self.client = TestClient(self)
+        celery.conf.ALWAYS_EAGER = True
+        settings.DATABASE_NAME = 'test'
 
     def tearDown(self):
         super(BaseHTTPTestCase, self).tearDown()

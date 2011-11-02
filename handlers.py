@@ -14,7 +14,7 @@ from tornado_utils.send_mail import send_email
 from tornado.escape import json_decode, json_encode
 from pymongo.objectid import InvalidId, ObjectId
 import utils
-
+import tasks
 from models import User, Tweeter
 
 
@@ -61,50 +61,10 @@ class BaseHandler(tornado.web.RequestHandler):
     def save_tweeter_user(self, user):
         user_id = user['id']
         tweeter = self.db.Tweeter.find_one({'user_id': user_id})
-        _save = False
         if not tweeter:
             tweeter = self.db.Tweeter()
             tweeter['user_id'] = user_id
-            _save = True
-
-        if tweeter['name'] != user['name']:
-            tweeter['name'] = user['name']
-            _save = True
-
-        if tweeter['username'] != user['screen_name']:
-            tweeter['username'] = user['screen_name']
-            _save = True
-
-        if tweeter['followers'] != user['followers_count']:
-            tweeter['followers'] = user['followers_count']
-            _save = True
-
-        if tweeter['following'] != user['friends_count']:
-            tweeter['following'] = user['friends_count']
-            _save = True
-
-        def parse_status_date(dstr):
-            dstr = re.sub('\+\d{1,4}', '', dstr)
-            return datetime.datetime.strptime(
-              dstr,
-              '%a %b %d %H:%M:%S %Y'
-            )
-        last_tweet_date = None
-        if 'status' in user:
-            last_tweet_date = user['status']['created_at']
-            last_tweet_date = parse_status_date(last_tweet_date)
-            if tweeter['last_tweet_date'] != last_tweet_date:
-                tweeter['last_tweet_date'] = last_tweet_date
-                _save = True
-
-        ratio_before = tweeter['ratio']
-        ratio = tweeter.set_ratio()
-        if ratio != ratio_before:
-            _save = True
-
-        if _save:
-            tweeter.save()
-
+        Tweeter.update_tweeter(tweeter, user)
         return tweeter
 
     def assert_tweeter_user(self, user):
@@ -520,53 +480,51 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         if username is None:
             username = options['username']
 
-        key = 'info:%s' % username
-        value = self.redis.get(key)
+        def age(d):
+            return (datetime.datetime.utcnow() - d).seconds
 
-        if value is None:
-            user = self.db.User.find_one({'username': options['this_username']})
-            access_token = user['access_token']
+        tweeter = self.db.Tweeter.find_one({'username': username})
+        current_user = self.get_current_user()
+        if not tweeter:
+            access_token = current_user['access_token']
             result = yield tornado.gen.Task(self.twitter_request,
                                             "/users/show",
                                             screen_name=username,
                                             access_token=access_token)
-            if result:
-                self.save_tweeter_user(result)
-        else:
-            result = json_decode(value)
-            self.assert_tweeter_user(result)
-            key = None
 
-        if result is None:
+            tweeter = self.save_tweeter_user(result)
+        elif age(tweeter['modify_date']) > 3600:
+            tasks.refresh_user_info.delay(
+              username, current_user['access_token'])
+
+        if not tweeter:
             options['error'] = "Unable to look up info for %s" % username
             self._render(options)
             return
-        if isinstance(result, basestring):
-            result = json_decode(result)
-        if key:
-            self.redis.setex(key, json_encode(result), 60 * 60)
+
         if 'info' not in options:
-            options['info'] = {options['username']: result}
+            options['info'] = {options['username']: tweeter}
             self._fetch_info(options, username=options['this_username'])
         else:
-            options['info'][options['this_username']] = result
+            options['info'][options['this_username']] = tweeter
             self._render(options)
 
     def _render(self, options):
-        if 'error' not in options:
-            if options['follows']:
-                page_title = '%s follows me'
-            else:
-                page_title = '%s is too cool for me'
-            self._set_ratio(options, 'username')
-            self._set_ratio(options, 'this_username')
-            options['page_title'] = page_title % options['username']
-            options['perm_url'] = self.get_following_perm_url(
-              options['username'], options['this_username'])
-            self.render('following.html', **options)
-        else:
+        if 'error' in options:
             options['page_title'] = 'Error :('
             self.render('following_error.html', **options)
+            return
+
+        if options['follows']:
+            page_title = '%s follows me'
+        else:
+            page_title = '%s is too cool for me'
+        options['page_title'] = page_title % options['username']
+        options['perm_url'] = self.get_following_perm_url(
+          options['username'],
+          options['this_username']
+        )
+        self.render('following.html', **options)
 
     def _set_ratio(self, options, key):
         value = options[key]
@@ -680,11 +638,16 @@ class FollowingComparedtoHandler(FollowingHandler):
     @tornado.gen.engine
     def get(self, username, compared_to):
         options = {'compared_to': compared_to}
-        tweeter = self.db.Tweeter.find_by_username(self.db, username)
-        compared_tweeter = self.db.Tweeter.find_by_username(self.db, compared_to)
+        tweeter = self.db.Tweeter.find_one({'username': username})
+        compared_tweeter = self.db.Tweeter.find_one({'username': compared_to})
+
+        def age(d):
+            return (datetime.datetime.utcnow() - d).seconds
+
 
         current_user = self.get_current_user()
         if current_user:
+
             # if we don't have tweeter info on any of them, fetch it
             if not tweeter:
                 # fetch it
@@ -693,12 +656,19 @@ class FollowingComparedtoHandler(FollowingHandler):
                                         screen_name=username,
                                         access_token=current_user['access_token'])
                 tweeter = self.save_tweeter_user(result)
+            elif age(tweeter['modify_date']) > 3600:
+                tasks.refresh_user_info.delay(
+                  username, current_user['access_token'])
+
             if not compared_tweeter:
                 result = yield tornado.gen.Task(self.twitter_request,
                                         "/users/show",
                                         screen_name=compared_to,
                                         access_token=current_user['access_token'])
                 compared_tweeter = self.save_tweeter_user(result)
+            elif age(compared_tweeter['modify_date']) > 3600:
+                tasks.refresh_user_info.delay(
+                  compared_to, current_user['access_token'])
 
         elif not tweeter or not compared_tweeter:
             options = {
@@ -717,8 +687,8 @@ class FollowingComparedtoHandler(FollowingHandler):
         value = self.redis.get(key)
         if value is None:
             following = (self.db.Following
-                       .find_one({'user': tweeter['_id'],
-                                  'follows': compared_tweeter['_id']}))
+                         .find_one({'user': tweeter['_id'],
+                                    'follows': compared_tweeter['_id']}))
             if following:
                 options['follows'] = following['following']
             else:
@@ -735,19 +705,11 @@ class FollowingComparedtoHandler(FollowingHandler):
                                      (username, compared_to))
 
         options['info'] = {
-          username: {
-            'followers_count': tweeter['followers'],
-            'friends_count': tweeter['following'],
-          },
-          compared_to: {
-            'followers_count': compared_tweeter['followers'],
-            'friends_count': compared_tweeter['following'],
-          }
+          username: tweeter,
+          compared_to: compared_tweeter
         }
         options['username'] = username
         options['this_username'] = compared_to
-        self._set_ratio(options, 'username')
-        self._set_ratio(options, 'this_username')
         options['compared_to'] = compared_to
         options['perm_url'] = self.get_following_perm_url(
           options['username'], options['this_username'])

@@ -71,11 +71,11 @@ var COMPARED_TO = {% if compared_to %}'{{ compared_to }}'{% else %}null{% end %}
     data.addColumn('number', 'following');
     data.addRows(2);
     data.setValue(0, 0, USERNAME);
-    data.setValue(0, 1, {{ info[username]['followers_count'] }});
-    data.setValue(0, 2, {{ info[username]['friends_count'] }});
+    data.setValue(0, 1, {{ info[username]['followers'] }});
+    data.setValue(0, 2, {{ info[username]['following'] }});
     data.setValue(1, 0, COMPARED_TO ? COMPARED_TO : 'you');
-    data.setValue(1, 1, {{ info[this_username]['followers_count'] }});
-    data.setValue(1, 2, {{ info[this_username]['friends_count'] }});
+    data.setValue(1, 1, {{ info[this_username]['followers'] }});
+    data.setValue(1, 2, {{ info[this_username]['following'] }});
      var chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
     chart.draw(data, {width: 600, height: 400,
                       title: 'Coolness in terms of following and followers',
@@ -124,13 +124,13 @@ var COMPARED_TO = {% if compared_to %}'{{ compared_to }}'{% else %}null{% end %}
   </tr>
   <tr>
     <td class="label">followers:</td>
-    <td>{{ info[username]['followers_count'] }}</td>
-    <td>{{ info[this_username]['followers_count'] }}</td>
+    <td>{{ info[username]['followers'] }}</td>
+    <td>{{ info[this_username]['followers'] }}</td>
   </tr>
   <tr>
     <td class="label">following:</td>
-    <td>{{ info[username]['friends_count'] }}</td>
-    <td>{{ info[this_username]['friends_count'] }}</td>
+    <td>{{ info[username]['following'] }}</td>
+    <td>{{ info[this_username]['following'] }}</td>
   </tr>
   <tr>
     <td class="label">ratio:</td>

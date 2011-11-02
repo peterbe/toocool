@@ -11,4 +11,12 @@ Running tests
 
 Run this:
 
-        python bin/_run_tests.py --logging=error
+        $ python bin/_run_tests.py --logging=error
+
+
+Running celeryd
+---------------
+
+Run celeryd like this:
+
+        $ celeryd --loglevel=INFO

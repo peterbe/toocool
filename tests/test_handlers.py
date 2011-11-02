@@ -2,6 +2,7 @@ import datetime
 import os
 import json
 from urllib import urlencode
+import tornado.escape
 from .base import BaseHTTPTestCase
 from handlers import (TwitterAuthHandler, FollowsHandler, FollowingHandler,
                       EveryoneIFollowJSONHandler)
@@ -809,7 +810,6 @@ class HandlersTestCase(BaseHTTPTestCase):
 
         struct = json.loads(response.body)
         self.assertTrue(len(struct['text']) <= 140)
-        #self.assertTrue(struct['text'].endswith('#toocool'))
         self.assertTrue('@Mr_Billy_Nomates' in struct['text'])
 
         peterbe = self.db.Tweeter.find_one({'username': 'peterbe'})
@@ -840,6 +840,92 @@ class HandlersTestCase(BaseHTTPTestCase):
         response = self.client.get(url)
         self.assertEqual(response.code, 404)
         self.assertTrue('restart your computer' in response.body)
+
+    def test_following_compared_refresh(self):
+        url = self.reverse_url('following_compared', 'obama', 'kimk')
+        self._login()
+
+        FollowingHandler.twitter_request = \
+          make_mock_twitter_request({
+            "/friendships/show": {u'relationship': {
+                                    u'target': {u'followed_by': False,
+                                    u'following': False,
+                                    u'screen_name': u'obama'}}},
+            "/users/show?screen_name=obama": {u'followers_count': 41700,
+                            u'following': False,
+                            u'friends_count': 1300,
+                            u'name': u'Barak Obama',
+                            u'screen_name': u'obama',
+                            'id': 9876543210,
+                            },
+            "/users/show?screen_name=kimk": {
+                            u'followers_count': 40117,
+                            u'following': False,
+                            u'friends_count': 200,
+                            u'name': u'Kim Kardashian',
+                            u'screen_name': u'kimk',
+                            'id': 123456789,
+                            }
+            })
+
+        response = self.client.get(url)
+        self.assertEqual(response.code, 200)
+
+        obama = self.db.Tweeter.find_one({'username': 'obama'})
+        self.assertEqual(obama['ratio'], 41700.0 / 1300)
+        self.assertTrue('%.1f' % (41700.0 / 1300) in response.body)
+
+        kimk = self.db.Tweeter.find_one({'username': 'kimk'})
+        self.assertEqual(kimk['ratio'], 40117.0 / 200)
+        self.assertTrue('%.1f' % (40117.0 / 200) in response.body)
+
+        # change the stats
+        import tasks
+        def mock_twitter_request(self, url, callback, access_token, screen_name):
+            results = {
+              'obama': {
+                u'followers_count': 40700,
+                u'following': False,
+                u'friends_count': 1333,
+                u'name': u'Barak Obama',
+                u'screen_name': u'obama',
+                'id': 9876543210,
+              },
+              'kimk': {
+                u'followers_count': 41117,
+                u'following': False,
+                u'friends_count': 222,
+                u'name': u'Kim Kardashian',
+                u'screen_name': u'kimk',
+                'id': 123456789,
+                }
+            }
+            class R(object):
+                def __init__(self, result):
+                    self.body = tornado.escape.json_encode(result)
+            callback(R(results[screen_name]))
+
+        tasks.UserUpdate.twitter_request = mock_twitter_request
+
+        # now, pretend time passes
+        obama['modify_date'] -= datetime.timedelta(seconds=60 * 60 + 1)
+        obama.save(update_modify_date=False)
+        kimk['modify_date'] -= datetime.timedelta(seconds=60 * 60 + 1)
+        kimk.save(update_modify_date=False)
+
+        # second time it's going to use the saved data
+        response = self.client.get(url)
+        self.assertEqual(response.code, 200)
+        # the old numbers will still be there
+        self.assertTrue('%.1f' % (41700.0 / 1300) in response.body)
+        self.assertTrue('%.1f' % (40117.0 / 200) in response.body)
+
+        # but the actual numbers will be updated!
+        obama = self.db.Tweeter.find_one({'username': 'obama'})
+        self.assertEqual(obama['ratio'], 40700.0 / 1333)  # new
+
+        kimk = self.db.Tweeter.find_one({'username': 'kimk'})
+        self.assertEqual(kimk['ratio'], 41117.0 / 222)  # new
 
 def make_twitter_get_authenticated_user_callback(struct):
     def twitter_get_authenticated_user(self, callback, **kw):
