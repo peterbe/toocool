@@ -28,9 +28,9 @@ def main():
     t0 = time.time()
     tornado.options.parse_command_line()
     if options.debug or options.dry_run:
-        from utils.send_mail.backends.console import EmailBackend
+        from tornado_utils.send_mail.backends.console import EmailBackend
     else:
-        from utils.send_mail.backends.smtp import EmailBackend
+        from tornado_utils.send_mail.backends.smtp import EmailBackend
     max_count = 10
     filenames = filenames[:max_count]
     messages = [cPickle.load(open(x, 'rb')) for x in filenames]
