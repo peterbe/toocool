@@ -1,5 +1,10 @@
 #!/usr/bin/env python
-import here
+try:
+    import here
+except ImportError:
+    import sys, os
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    import here
 
 import time
 import cPickle
