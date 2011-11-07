@@ -146,6 +146,25 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertEqual(int(self.redis.get('lookups:username:peterbe')), 2)
         self.assertEqual(int(self.redis.get('lookups:usernames')), 2)
 
+
+    def test_json_failing_twitter_api(self):
+        self.assertEqual(self.redis.get('lookups:json'), None)
+        FollowsHandler.twitter_request = \
+          make_mock_twitter_request({
+            "/friendships/lookup": None
+            })
+
+        self._login()
+
+        url = self.reverse_url('json')
+        import handlers
+        from mock import patch
+        with patch('handlers.time') as mock_time:
+            response = self.client.get(url, {'usernames': ['obama', 'kimk']})
+            self.assertEqual(response.code, 200)
+            struct = json.loads(response.body)
+            self.assertTrue(struct['ERROR'])
+
     def test_json_with_overriding_you(self):
         FollowsHandler.twitter_request = \
           make_mock_twitter_request({u'relationship': {
@@ -583,6 +602,28 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertEqual(peter['followers'], 417)
         self.assertEqual(peter['name'], 'Peter Bengtsson')
         self.assertEqual(peter['last_tweet_date'], None)
+
+    def test_everyone_json_twitter_failing(self):
+        url = self.reverse_url('everyone_json')
+        response = self.client.get(url)
+        self.assertEqual(response.code, 403)
+        self._login()
+
+        EveryoneIFollowJSONHandler.twitter_request = \
+          make_mock_twitter_request({
+            "/friends/ids": [123456789, 987654321],
+            "/users/lookup": None
+        })
+
+        import handlers
+        from mock import patch
+        with patch('handlers.time') as mock_time:
+            response = self.client.get(url)
+            assert mock_time.sleep.called
+            assert mock_time.sleep.call_count > 1
+            struct = json.loads(response.body)
+            self.assertTrue(struct['ERROR'])
+
 
     def test_lookups(self):
         url = self.reverse_url('lookups')

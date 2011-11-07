@@ -3,6 +3,7 @@ import datetime
 import random
 import os
 import logging
+import time
 from pprint import pprint, pformat
 import tornado.auth
 import tornado.web
@@ -323,10 +324,18 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
                     break
                 else:
                     attempts += 1
-                    from time import sleep
-                    sleep(1)
+                    time.sleep(1)
                     if attempts > 2:
-                        raise HTTPError(500, "Unable to look up friendships")
+                        result = {
+                          'ERROR': 'Unable to look up friendships on Twitter'
+                        }
+                        if self.jsonp:
+                            self.write_jsonp(self.jsonp, result)
+                        else:
+                            self.write_json(result)
+                        self.finish()
+                        return
+
             self._on_lookup(result, this_username, results)
         else:
             # all usernames were lookup'able by cache
@@ -820,13 +829,24 @@ class EveryoneIFollowJSONHandler(BaseHandler, tornado.auth.TwitterMixin):
         access_token = current_user['access_token']
         key = 'friends:%s' % this_username
         result = self.redis.get(key)
+        if result:
+            if result == 'null':  # pragma: no cover
+                result = None
+            elif 'next_cursor_str' in result:  # pragma: no cover
+                result = None
+
         if result is None:
             result = yield tornado.gen.Task(self.twitter_request,
               "/friends/ids",
               screen_name=this_username,
               access_token=access_token
             )
-            self.redis.setex(key, json_encode(result), 60 * 60)
+            if 'ids' in result:
+                result = result['ids']
+            if result:
+                self.redis.setex(key, json_encode(result), 60 * 60)
+            else:
+                raise NotImplementedError
         else:
             result = json_decode(result)
         # now turn these IDs into real screen names
@@ -857,11 +877,14 @@ class EveryoneIFollowJSONHandler(BaseHandler, tornado.auth.TwitterMixin):
                 if users is not None:
                     break
                 else:
-                    from time import sleep
-                    sleep(1)
+                    time.sleep(1)
                     attempts += 1
                     if attempts > 3:
-                        raise HTTPError(500, "Unable to connect to twitter")
+                        result = {'ERROR': 'Unable to connect to Twitter'}
+                        self.write_json(result)
+                        self.finish()
+                        return
+
             for user in users:
                 username = user['screen_name']
                 key = 'screen_name:%s' % user['id']

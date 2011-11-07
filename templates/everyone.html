@@ -19,6 +19,10 @@ a.profile:hover { text-decoration:underline; }
 a.compare { font-size: 0.7em; }
 ul li { list-style: none; margin:1px 10px; clear:left; }
 li a.thumbnail { float:left; padding:3px; margin:0 5px 0 0; }
+#error {
+  padding:50px;
+  color:red;
+}
 </style>
 {% end %}
 
@@ -38,10 +42,17 @@ li a.thumbnail { float:left; padding:3px; margin:0 5px 0 0; }
     </ul>
   </div>
 </div>
+<div id="error" style="display:none">
+  <h3>Sorry, an error happened</h3>
+  <code class="message" style="font-weight:bold"></code>
+  <p>Most likely, these errors are just temporary and you can either just
+  try to reload the page or just wait a couple of minutes and <a href="">try again</a>.
+</div>
 
 <div class="clearer">&nbsp;</div>
 
-<p id="pleasewait">Please wait whilst we figure out every one you follow...</p>
+<p id="pleasewait"><img src="{{ static_url("images/loading.gif") }}" alt="waiting...">
+Please wait whilst we figure out every one you follow...</p>
 
 <ul id="users" style="display:none">
 
@@ -106,7 +117,10 @@ $(function() {
 
   $.getJSON('/everyone.json', function (response) {
       if (response.ERROR) {
-        alert('ERROR: ' + response.ERROR);
+        $('#error .message').text(response.ERROR);
+        $('#split').hide();
+        $('#error').show();
+        $('#pleasewait').remove();
         return;
       }
       var li, p = $('#users');
