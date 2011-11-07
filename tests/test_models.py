@@ -30,3 +30,16 @@ class ModelsTestCase(TestCase, DatabaseTestCaseMixin):
 
         a = user['modify_date']
         self.assertTrue(a.microsecond > b.microsecond)
+
+    def test_find_by_username(self):
+        tweeter = self.db.Tweeter()
+        tweeter['user_id'] = 123
+        tweeter['username'] = u'TheRock'
+        tweeter['name'] = u'The Rock'
+        tweeter['followers'] = 100
+        tweeter['following'] = 100
+        tweeter.save()
+
+        self.assertTrue(self.db.Tweeter.find_by_username(self.db, 'THEROCK'))
+        self.assertTrue(self.db.Tweeter.find_by_username(self.db, 'TheRock'))
+        self.assertTrue(not self.db.Tweeter.find_by_username(self.db, 'RockThe'))

@@ -107,6 +107,13 @@ class BaseHandler(tornado.web.RequestHandler):
 
         return tweeter
 
+    def assert_tweeter_user(self, user):
+        user_id = user['id']
+        tweeter = self.db.Tweeter.find_one({'user_id': user_id})
+        if not tweeter:
+            return self.save_tweeter_user(user)
+        return tweeter
+
     BACKGROUND_IMAGES = [
           '/static/images/chuck.jpg',
           '/static/images/rock.jpg',
@@ -527,6 +534,7 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
                 self.save_tweeter_user(result)
         else:
             result = json_decode(value)
+            self.assert_tweeter_user(result)
             key = None
 
         if result is None:
@@ -567,7 +575,7 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         ratio = 1.0 * followers / max(following, 1)
         options['info'][value]['ratio'] = '%.1f' % ratio
         key = 'ratios'
-        tweeter = self.db.Tweeter.find_one({'username': value})
+        tweeter = self.db.Tweeter.find_by_username(self.db, value)
         assert tweeter
         rank = tweeter.get('ratio_rank', None)
         # This should be re-calculated periodically
@@ -598,10 +606,10 @@ class SuggestTweetHandler(BaseHandler):
                 raise HTTPError(403, "Not logged in")
             compared_to = current_user['username']
 
-        tweeter = self.db.Tweeter.find_one({'username': username})
+        tweeter = self.db.Tweeter.find_by_username(self.db, username)
         if not tweeter:
             raise HTTPError(400, "Unknown tweeter %r" % username)
-        compared_tweeter = self.db.Tweeter.find_one({'username': compared_to})
+        compared_tweeter = self.db.Tweeter.find_by_username(self.db, compared_to)
         if not tweeter:
             raise HTTPError(400, "Unknown tweeter %r" % compared_to)
 
@@ -672,8 +680,8 @@ class FollowingComparedtoHandler(FollowingHandler):
     @tornado.gen.engine
     def get(self, username, compared_to):
         options = {'compared_to': compared_to}
-        tweeter = self.db.Tweeter.find_one({'username': username})
-        compared_tweeter = self.db.Tweeter.find_one({'username': compared_to})
+        tweeter = self.db.Tweeter.find_by_username(self.db, username)
+        compared_tweeter = self.db.Tweeter.find_by_username(self.db, compared_to)
 
         current_user = self.get_current_user()
         if current_user:

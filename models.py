@@ -1,3 +1,4 @@
+import re
 import datetime
 from pymongo.objectid import ObjectId
 from mongolite import Connection, Document
@@ -49,8 +50,12 @@ class Tweeter(BaseDocument):
     def set_ratio(self):
         self['ratio'] = 1.0 * self['followers'] / max(self['following'], 1)
 
-#    def calculate_ratio_rank(self, db):
-
+    @staticmethod
+    def find_by_username(db, username):
+        tweeter = db.Tweeter.find_one({'username': username})
+        if not tweeter:
+            tweeter = db.Tweeter.find_one({'username': re.compile(re.escape(username), re.I)})
+        return tweeter
 
 
 @connection.register
