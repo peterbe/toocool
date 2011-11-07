@@ -936,3 +936,16 @@ class LookupsJSONHandler(LookupsHandler):
     def get(self):
         data = self.get_lookups()
         self.write_json(data)
+
+# this handler gets automatically appended last to all handlers inside app.py
+class PageNotFoundHandler(BaseHandler):
+
+    def get(self):
+        path = self.request.path
+        if not path.endswith('/'):
+            new_url = '%s/' % path
+            if self.request.query:
+                new_url += '?%s' % self.request.query
+            self.redirect(new_url)
+            return
+        raise HTTPError(404, path)

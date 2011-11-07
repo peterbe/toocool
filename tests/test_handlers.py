@@ -830,6 +830,17 @@ class HandlersTestCase(BaseHTTPTestCase):
         #self.assertTrue(struct['text'].endswith('#toocool'))
         self.assertTrue('@peterbestwin' in struct['text'])
 
+    def test_default_page_not_found(self):
+        url = '/does/not/exist'
+        response = self.client.get(url)
+        self.assertEqual(response.code, 302)
+        self.assertEqual(response.headers['location'], '/does/not/exist/')
+
+        url = '/does/not/exist/'
+        response = self.client.get(url)
+        self.assertEqual(response.code, 404)
+        self.assertTrue('restart your computer' in response.body)
+
 def make_twitter_get_authenticated_user_callback(struct):
     def twitter_get_authenticated_user(self, callback, **kw):
         callback(struct)

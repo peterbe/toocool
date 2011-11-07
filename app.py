@@ -46,6 +46,11 @@ class Application(tornado.web.Application):
             twitter_consumer_key=settings.TWITTER_CONSUMER_KEY,
             twitter_consumer_secret=settings.TWITTER_CONSUMER_SECRET,
         )
+        if 1 or not options.debug:
+            routed_handlers.append(
+              tornado.web.url('/.*?', handlers.PageNotFoundHandler,
+                            name='page_not_found')
+            )
         super(Application, self).__init__(routed_handlers, **app_settings)
 
         self.redis = redis.client.Redis(settings.REDIS_HOST,
