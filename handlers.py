@@ -900,7 +900,10 @@ class EveryoneIFollowJSONHandler(BaseHandler, tornado.auth.TwitterMixin):
                 self.redis.setex(key, username, 7 * 24 * 60 * 60)
                 screen_names.append(username)
 
-        assert len(result) == len(screen_names)
+        if len(result) != len(screen_names):
+            logging.error('RESULT (%d): %r' % (len(result), result))
+            logging.error('SCREEN_NAMES (%d): %r' % (len(screen_names), screen_names))
+            raise ValueError('Invalid number of results')
 
         screen_names.sort()
         self.write_json(screen_names)
