@@ -8,8 +8,6 @@ TWITTER_CONSUMER_SECRET = None
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
 
-DATABASE_NAME = 'toocool'
-
 # complete this in your local_settings.py to get emails sent on errors
 ADMIN_EMAILS = (
 )
