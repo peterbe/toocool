@@ -134,8 +134,8 @@ var COMPARED_TO = {% if compared_to %}'{{ compared_to }}'{% else %}null{% end %}
   </tr>
   <tr>
     <td class="label">ratio:</td>
-    <td>{{ info[username]['ratio'] }}</td>
-    <td>{{ info[this_username]['ratio'] }}</td>
+    <td>{{ '%.1f' % info[username]['ratio'] }}</td>
+    <td>{{ '%.1f' % info[this_username]['ratio'] }}</td>
   </tr>
   {% if info[username].get('rank') and info[this_username].get('rank') %}
   <tr>

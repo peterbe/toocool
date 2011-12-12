@@ -491,8 +491,8 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
                                             "/users/show",
                                             screen_name=username,
                                             access_token=access_token)
-
-            tweeter = self.save_tweeter_user(result)
+            if result:
+                tweeter = self.save_tweeter_user(result)
         elif age(tweeter['modify_date']) > 3600:
             tasks.refresh_user_info.delay(
               username, current_user['access_token'])
@@ -508,6 +508,20 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         else:
             options['info'][options['this_username']] = tweeter
             self._render(options)
+
+    def _update_ratio_rank(self, tweeter):
+        rank = tweeter.get('ratio_rank', None)
+        # This should be re-calculated periodically
+        if rank is None:
+            rank = 0
+            for each in (self.db.Tweeter
+                         .find(fields=('username',))
+                         .sort('ratio', -1)):
+                rank += 1
+                if each['username'] == tweeter['username']:
+                    tweeter['ratio_rank'] = rank
+                    tweeter.save()
+                    break
 
     def _render(self, options):
         if 'error' in options:
@@ -533,6 +547,7 @@ class FollowingHandler(BaseHandler, tornado.auth.TwitterMixin):
         ratio = 1.0 * followers / max(following, 1)
         options['info'][value]['ratio'] = '%.1f' % ratio
         key = 'ratios'
+
         tweeter = self.db.Tweeter.find_by_username(self.db, value)
         assert tweeter
         rank = tweeter.get('ratio_rank', None)
@@ -703,6 +718,11 @@ class FollowingComparedtoHandler(FollowingHandler):
         else:
             options['page_title'] = ('%s is too cool for %s' %
                                      (username, compared_to))
+
+        if tweeter.get('ratio_rank', None) is None:
+            self._update_ratio_rank(tweeter)
+        if compared_tweeter.get('ratio_rank', None) is None:
+            self._update_ratio_rank(compared_tweeter)
 
         options['info'] = {
           username: tweeter,

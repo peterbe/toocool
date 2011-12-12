@@ -330,21 +330,13 @@ class HandlersTestCase(BaseHTTPTestCase):
                             u'screen_name': u'obama',
                             'id': 9876543210,
                             },
-            "/users/show?screen_name=peterbe": {
-                            u'followers_count': 417,
-                            u'following': False,
-                            u'friends_count': 330,
-                            u'name': u'Peter Bengtsson',
-                            u'screen_name': u'peterbe',
-                            'id': 123456789,
-                            }
             })
 
         response = self.client.get(url)
         self.assertEqual(response.code, 200)
         self.assertTrue('<title>obama is too cool for me' in response.body)
         self.assertTrue('%.1f' % (41700.0/1300) in response.body)
-        self.assertTrue('%.1f' % (417.0/330) in response.body)
+        self.assertTrue('%.1f' % (333.0/222) in response.body)
 
         following = self.db.Following.find_one({'user': 'obama'})
         assert following
@@ -383,7 +375,7 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertTrue('<title>obama is too cool for me' in response.body)
         self.assertTrue('%.1f' % (41700.0/1300) in response.body)
-        self.assertTrue('%.1f' % (417.0/330) in response.body)
+        self.assertTrue('%.1f' % (333.0/222) in response.body)
 
         following = self.db.Following.find_one({'user': 'obama'})
         assert following
@@ -409,13 +401,12 @@ class HandlersTestCase(BaseHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertTrue('<title>chris follows me' in response.body)
         self.assertTrue('%.1f' % (400.0/1000) in response.body)
-        self.assertTrue('%.1f' % (417.0/330) in response.body)
+        self.assertTrue('%.1f' % (333.0/222) in response.body)
 
         following = self.db.Following.find_one({'user': 'chris'})
         assert following
         self.assertTrue(following['following'])
         self.assertTrue(not self.db.Following.find_one({'user': 'peterbe'}))
-################################################################################
         self.assertEqual(following,
                          self.db.Following.find_one({'user': 'chris',
                                                      'follows': 'peterbe'}))
@@ -435,20 +426,14 @@ class HandlersTestCase(BaseHTTPTestCase):
                                     u'target': {u'followed_by': False,
                                     u'following': False,
                                     u'screen_name': u'obama'}}},
-            "/users/show?screen_name=obama": {u'followers_count': 41700,
-                            u'following': False,
-                            u'friends_count': 1300,
-                            u'name': u'Barak',
-                            u'screen_name': u'obama',
-                            u'id': 1233456365
-                            },
+            "/users/show?screen_name=obama": None,
             "/users/show?screen_name=peterbe": None
             })
 
         response = self.client.get(url)
         self.assertEqual(response.code, 200)
         self.assertTrue("Sorry" in response.body)
-        self.assertTrue("Unable to look up info for peterbe"
+        self.assertTrue("Unable to look up info for obama"
                         in response.body)
 
     def test_following_temporary_glitch_on_friendship(self):
@@ -484,6 +469,7 @@ class HandlersTestCase(BaseHTTPTestCase):
                         in response.body)
 
     def test_following_someone_following_0(self):
+        assert not self.db.Tweeter.find().count()
         url = self.reverse_url('following', 'obama')
         response = self.client.get(url)
         self.assertEqual(response.code, 302)
@@ -504,20 +490,12 @@ class HandlersTestCase(BaseHTTPTestCase):
                             u'screen_name': u'obama',
                             'id': 987654321,
                             },
-            "/users/show?screen_name=peterbe": {
-                            u'followers_count': 417,
-                            u'following': False,
-                            u'friends_count': 330,
-                            u'name': u'Peter Bengtsson',
-                            u'screen_name': u'peterbe',
-                            'id': 123456789
-                            }
             })
 
         response = self.client.get(url)
         self.assertEqual(response.code, 200)
         self.assertTrue('<title>obama is too cool for me' in response.body)
-        self.assertTrue('%.1f' % (417.0/330) in response.body)
+        self.assertTrue('%.1f' % (333.0/222) in response.body)  # see _login()
         self.assertTrue('%.1f' % (41700.0/1) in response.body)
 
     def test_screenshots(self):
