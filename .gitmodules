@@ -7,3 +7,6 @@
 [submodule "vendor/src/tornado"]
 	path = vendor/src/tornado
 	url = git://github.com/facebook/tornado.git
+[submodule "vendor/src/tornadio2"]
+	path = vendor/src/tornadio2
+	url = git://github.com/MrJoes/tornadio2.git

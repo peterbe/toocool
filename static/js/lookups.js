@@ -66,53 +66,68 @@ function _set_up_charts(numbers) {
      height:300,
      lineWidth:3
   };
-  if (chart_jsons === null) {
+  if (chart_jsons === null && numbers.lookups_json) {
     var p = new cloneObject(options);
     p.title = 'Twitter requests by JSON';
     chart_jsons = new Chart('chart-jsons', p);
   }
-  if (chart_jsonps === null) {
+  if (chart_jsonps === null && numbers.lookups_jsonp) {
     var p = new cloneObject(options);
     p.title = 'Twitter requests by JSONP';
     chart_jsonps = new Chart('chart-jsonps', p);
   }
-  if (chart_usernames === null) {
+  if (chart_usernames === null && numbers.lookups_usernames) {
     var p = new cloneObject(options);
     p.title = 'Total number of usernames looked up';
     p.series = [{color: 'green'}];
     chart_usernames = new Chart('chart-usernames', p);
   }
-  if (chart_auths === null) {
+  if (chart_auths === null && numbers.auths) {
     var p = new cloneObject(options);
     p.title = 'Authentications';
     p.series = [{color: 'red'}];
     chart_auths = new Chart('chart-auths', p);
   }
 
-  chart_jsons.add_value(numbers.lookups_json);
-  chart_jsonps.add_value(numbers.lookups_jsonp);
-  chart_usernames.add_value(numbers.lookups_usernames);
-  chart_auths.add_value(numbers.auths);
+  if (numbers.lookups_json)
+    chart_jsons.add_value(numbers.lookups_json);
+  if (numbers.lookups_jsonp)
+    chart_jsonps.add_value(numbers.lookups_jsonp);
+  if (numbers.lookups_usernames)
+    chart_usernames.add_value(numbers.lookups_usernames);
+  if (numbers.auths)
+    chart_auths.add_value(numbers.auths);
 
 }
 
-function update() {
-  function incr_number(key, num) {
-    var before = $(key).text();
-    if (before !== '' + tsep(num)) {
-      // there's a change!
-      $(key).fadeTo(200, 0.1, function() {
-        $(this).text(tsep(num)).fadeTo(300, 1.0);
-      });
-    }
+function incr_number(key, num) {
+  var before = $(key).text();
+  if (before !== '' + tsep(num)) {
+    // there's a change!
+    $(key).fadeTo(200, 0.1, function() {
+      $(this).text(tsep(num)).fadeTo(300, 1.0);
+    });
   }
+}
 
-  $.getJSON(JSON_URL, function(response) {
+function process_response(response) {
+  if (response.lookups_json && response.lookups_jsonp)
     incr_number('#lookups-total', response.lookups_json + response.lookups_jsonp);
+  if (response.lookups_json)
     incr_number('#lookups-json', response.lookups_json);
+  if (response.lookups_jsonp)
     incr_number('#lookups-jsonp', response.lookups_jsonp);
+  if (response.lookups_usernames)
     incr_number('#lookups-usernames', response.lookups_usernames);
+  if (response.auths)
     incr_number('#auths', response.auths);
+  _set_up_charts(response);
+}
+
+/*
+function update() {
+  $.getJSON(JSON_URL, function(response) {
+    process_response(response);
     var change = !compareAssociativeArrays(response, previous);
     previous = response;
 
@@ -128,7 +143,22 @@ function update() {
     setTimeout(update, Math.ceil(t * 1000));
   });
 }
+*/
+
+window.WEB_SOCKET_DEBUG = true;
+function setupSocket() {
+  var socket = new io.connect('http://' + window.location.host, {
+     port: 8888
+  });
+
+  socket.on('connect', function() {
+    socket.on('message', function(msg) {
+      process_response(msg);
+    });
+
+  });
+}
 
 $(function() {
-  setTimeout(update, 5 * 1000);
+  setupSocket();
 });

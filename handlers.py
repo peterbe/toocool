@@ -185,14 +185,20 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
             key = 'lookups:json'
         if not isinstance(usernames, int):
             usernames = len(usernames)
-        self.redis.incr(key)
-
+        self.redis.publish('lookups', tornado.escape.json_encode({
+          key: int(self.redis.get(key))
+        }))
         key = 'lookups:username:%s' % username
         assert username
         self.redis.incr(key)
 
         key = 'lookups:usernames'
         self.redis.incr(key, usernames)
+
+        self.redis.publish('lookups', tornado.escape.json_encode({
+          key: int(self.redis.get(key))
+
+        }))
 
     @tornado.web.asynchronous
     @tornado.gen.engine
@@ -359,6 +365,9 @@ class TwitterAuthHandler(BaseAuthHandler, tornado.auth.TwitterMixin):
         self.redis.incr(key)
         key = 'auths:total'
         self.redis.incr(key)
+        self.redis.publish('lookups', tornado.escape.json_encode({
+          key: int(self.redis.get(key))
+        }))
 
     @tornado.web.asynchronous
     def get(self):
