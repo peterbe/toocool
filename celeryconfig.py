@@ -1,4 +1,5 @@
-import here
+import here  # so that the vendor lib is available later
+
 # http://docs.celeryproject.org/en/latest/tutorials/otherqueues.html#redis
 BROKER_TRANSPORT = "redis"
 
