@@ -12,7 +12,7 @@ from tornado.web import HTTPError
 from tornado_utils.routes import route
 from tornado_utils.send_mail import send_email
 from tornado.escape import json_decode, json_encode
-from pymongo.objectid import InvalidId, ObjectId
+from bson.objectid import InvalidId, ObjectId
 import utils
 import tasks
 from models import User, Tweeter
@@ -186,7 +186,7 @@ class FollowsHandler(BaseHandler, tornado.auth.TwitterMixin):
         if not isinstance(usernames, int):
             usernames = len(usernames)
         self.redis.publish('lookups', tornado.escape.json_encode({
-          key: int(self.redis.get(key))
+          key: int(self.redis.get(key) or 0)
         }))
         key = 'lookups:username:%s' % username
         assert username

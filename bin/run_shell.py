@@ -13,7 +13,7 @@ if __name__ == '__main__':
 
 
     from models import User, Tweeter, connection
-    from pymongo.objectid import InvalidId, ObjectId
+    from bson.objectid import InvalidId, ObjectId
 
     import settings
     db = connection[settings.DATABASE_NAME]
